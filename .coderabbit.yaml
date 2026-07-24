@@ -13,9 +13,14 @@ reviews:
     - path: "proto/**/*.proto"
       instructions: |
         Review protobuf definitions for:
-        - Correct field numbering (no gaps, no reuse)
+        - Field numbers must be unique within each message (gaps are OK, contiguous numbering is NOT required)
+        - No reuse or renumbering of existing field numbers (wire-incompatible breaking change)
+        - Use 'reserved' for removed fields to prevent accidental reuse
         - Backward compatibility (no renaming/renumbering existing fields)
-        - Extension numbers must match registered values: MethodOptions=1179, ServiceOptions=1180, FileOptions=1181
+        - Extension numbers must match registered values:
+          - protocgen.mcp.v1.method (MethodOptions): 1179
+          - protocgen.mcp.v1.service (ServiceOptions): 1180
+          - protocgen.mcp.v1.file (FileOptions): 1181
         - V2/V3 reserved fields should NOT be removed or renumbered
         - Comments on every message and field (LLM-facing descriptions matter)
 
