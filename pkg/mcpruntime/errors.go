@@ -2,7 +2,9 @@ package mcpruntime
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -15,10 +17,6 @@ type errorContent struct {
 	Error      string   `json:"error"`
 	Code       string   `json:"code,omitempty"`
 	Violations []string `json:"violations,omitempty"`
-}
-
-func newErrorResult(msg string) *CallToolResult {
-	return newErrorResultWithDetails(msg, "", nil)
 }
 
 func newErrorResultWithDetails(msg, code string, violations []string) *CallToolResult {
@@ -136,9 +134,9 @@ func parseViolationsFromJSON(data []byte) []string {
 	// Structure matches buf.validate.Violations
 	var payload struct {
 		Violations []struct {
-			FieldPath   string `json:"fieldPath"`
+			FieldPath    string `json:"fieldPath"`
 			ConstraintID string `json:"constraintId"`
-			Message     string `json:"message"`
+			Message      string `json:"message"`
 		} `json:"violations"`
 	}
 
@@ -157,9 +155,18 @@ func parseViolationsFromJSON(data []byte) []string {
 	return results
 }
 
+// Patterns that indicate internal implementation details that must not
+// be leaked to LLMs. Compiled once at package init time.
+var (
+	// Matches absolute file paths: /home/user/..., /var/lib/..., C:\Users\...
+	absPathPattern = regexp.MustCompile(`(?:/[a-zA-Z0-9_.+-]+){2,}`)
+	// Matches host:port patterns: localhost:50051, backend-svc:8080
+	hostPortPattern = regexp.MustCompile(`[a-zA-Z0-9._-]+:\d{2,5}`)
+)
+
 // sanitizeErrorMessage strips internal details from error messages.
 // Takes only the first line, caps at 200 chars, and removes anything
-// that looks like a stack trace or internal path.
+// that looks like a stack trace, internal file path, or host:port.
 func sanitizeErrorMessage(msg string) string {
 	// Take only the first line.
 	if idx := strings.IndexByte(msg, '\n'); idx != -1 {
@@ -172,30 +179,33 @@ func sanitizeErrorMessage(msg string) string {
 		msg = msg[:maxLen] + "..."
 	}
 
-	// Remove anything that looks like internal details.
-	// Strip file paths (e.g., /home/user/service/...)
-	// Strip port numbers (e.g., :50051)
+	// Check for stack trace / panic keywords.
 	for _, pattern := range []string{"goroutine", "panic:", ".go:", "runtime."} {
 		if strings.Contains(msg, pattern) {
 			return "invalid input parameters"
 		}
 	}
 
+	// Strip absolute file paths.
+	if absPathPattern.MatchString(msg) {
+		return "invalid input parameters"
+	}
+
+	// Strip host:port patterns (e.g., backend-svc:50051).
+	if hostPortPattern.MatchString(msg) {
+		return "invalid input parameters"
+	}
+
 	return msg
 }
 
 // asConnectError attempts to extract a *connect.Error from the given error.
+// Uses errors.As to correctly unwrap wrapped errors, ensuring that
+// middleware-wrapped connect errors retain their structured details
+// (violation fields, error codes, etc.).
 func asConnectError(err error) (*connect.Error, bool) {
 	var connectErr *connect.Error
-	if ok := connect.IsNotModifiedError(err); ok {
-		// Not a connect error in the usual sense.
-		return nil, false
-	}
-	// connect.CodeOf returns CodeUnknown for non-connect errors,
-	// but we need the full *connect.Error to access Details().
-	connectErr = new(connect.Error)
-	if errors, ok := err.(*connect.Error); ok {
-		connectErr = errors
+	if errors.As(err, &connectErr) {
 		return connectErr, true
 	}
 	return nil, false

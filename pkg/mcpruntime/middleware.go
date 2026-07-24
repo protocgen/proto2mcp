@@ -76,6 +76,21 @@ func (f ToolInterceptorFunc) FilterTools(_ context.Context, tools []ToolDefiniti
 	return tools
 }
 
+// DiscoveryInterceptorFunc is an adapter for middleware that only filters
+// tool visibility without intercepting tool calls. It implements the full
+// Middleware interface with a pass-through HandleToolCall.
+type DiscoveryInterceptorFunc func(ctx context.Context, tools []ToolDefinition) []ToolDefinition
+
+// HandleToolCall is a pass-through — DiscoveryInterceptorFunc does not intercept calls.
+func (f DiscoveryInterceptorFunc) HandleToolCall(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+	return next(ctx, req)
+}
+
+// FilterTools delegates to the underlying function.
+func (f DiscoveryInterceptorFunc) FilterTools(ctx context.Context, tools []ToolDefinition) []ToolDefinition {
+	return f(ctx, tools)
+}
+
 // ChainMiddleware chains multiple middleware in order (first middleware is outermost).
 // Each middleware's HandleToolCall wraps the next, and FilterTools is applied
 // sequentially across all middleware.
