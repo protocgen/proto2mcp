@@ -7,15 +7,15 @@ import "google/protobuf/descriptor.proto";
 option go_package = "github.com/protocgen/proto2mcp/gen/protocgen/mcp/v1;mcpv1";
 
 extend google.protobuf.MethodOptions {
-  MethodMCPOptions method = 1052025;
+  MethodMCPOptions method = 1179;
 }
 
 extend google.protobuf.ServiceOptions {
-  ServiceMCPOptions service = 1052026;
+  ServiceMCPOptions service = 1180;
 }
 
 extend google.protobuf.FileOptions {
-  FileMCPOptions file = 1052027;
+  FileMCPOptions file = 1181;
 }
 
 enum FailureStrategy {
