@@ -1,4 +1,6 @@
 version: v2
-name: buf.build/protocgen/mcp
+modules:
+  - path: proto
+    name: buf.build/protocgen/mcp
 deps:
   - buf.build/bufbuild/protovalidate
