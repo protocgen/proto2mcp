@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+
+reviews:
+  profile: "assertive"
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+
+  path_instructions:
+    - path: "proto/**/*.proto"
+      instructions: |
+        Review protobuf definitions for:
+        - Field numbers must be unique within each message (gaps are OK, contiguous numbering is NOT required)
+        - No reuse or renumbering of existing field numbers (wire-incompatible breaking change)
+        - Use 'reserved' for removed fields to prevent accidental reuse
+        - Backward compatibility (no renaming/renumbering existing fields)
+        - Extension numbers must match registered values:
+          - protocgen.mcp.v1.method (MethodOptions): 1179
+          - protocgen.mcp.v1.service (ServiceOptions): 1180
+          - protocgen.mcp.v1.file (FileOptions): 1181
+        - V2/V3 reserved fields should NOT be removed or renumbered
+        - Comments on every message and field (LLM-facing descriptions matter)
+
+    - path: "pkg/mcpruntime/**/*.go"
+      instructions: |
+        This is the shared runtime library imported by generated code and user applications.
+        Review for:
+        - Interface stability: exported interfaces MUST NOT have methods added (breaking change)
+        - Error messages MUST NOT leak internal details (security: no stack traces, no backend addresses)
+        - Context values must use unexported keys (prevent spoofing)
+        - Middleware chain must be composable and order-independent where possible
+        - All exported symbols must have godoc comments
+
+    - path: "pkg/extract/**/*.go"
+      instructions: |
+        This is a PUBLIC package used at both codegen time and runtime (V3 AI API Gateway).
+        Review for:
+        - No dependency on protogen (codegen-only) types in public API — use protoreflect for runtime compatibility
+        - JSON Schema output must match protojson wire format (64-bit ints as strings, enums as strings)
+        - google.protobuf.Any MUST trigger a hard build error
+        - Streaming RPCs MUST trigger a hard build error
+        - buf.validate constraints must map to JSON Schema keywords accurately
+
+    - path: "internal/emit/**/*.go"
+      instructions: |
+        Code generation using dave/jennifer. Review for:
+        - Generated code must compile without modification
+        - Same-package output (no import cycles)
+        - Generated interfaces must be stable across regeneration (deterministic output)
+        - No hardcoded tool names — use ToolNamerFunc
+
+    - path: "cmd/**/*.go"
+      instructions: |
+        Plugin entrypoint. Review for:
+        - Clean flag parsing
+        - Hard-fail on WarnError severity warnings (fail-closed)
+        - Stderr for warnings, stdout for generated code only
+
+  tools:
+    golangci-lint:
+      enabled: true
+    buf:
+      enabled: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: "auto"
