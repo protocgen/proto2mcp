@@ -27,9 +27,9 @@ mcpServer.RegisterTool("get_user", "Get user by ID", json.RawMessage(`{
 **After `proto2mcp`**: Zero boilerplate
 ```go
 // Just 3 lines after `buf generate`
-mcpSrv := mcp.NewServer("my-mcp", "1.0.0")
-mcpgen.RegisterUserServiceMCP(mcpSrv, userClient)
-mcpSrv.Serve()
+s := mcp.NewServer(&mcp.Implementation{Name: "my-mcp", Version: "1.0.0"}, nil)
+mcpgen.RegisterUserServiceMCP(s, userClient)
+_ = s.Run(ctx, mcp.NewStdioTransport())
 ```
 
 ## Quick Start
@@ -60,23 +60,28 @@ import (
 	"context"
 	"log"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-	"github.com/myorg/myrepo/gen/go/myapp/v1"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/protocgen/proto2mcp/pkg/mcpruntime"
+	myappv1 "github.com/myorg/myrepo/gen/go/myapp/v1"
 )
 
 func main() {
 	// 1. Initialize your existing gRPC/Connect client
-	client := myapp.NewUserServiceClient(...)
+	client := myappv1.NewUserServiceClient(...)
 
 	// 2. Create an MCP server
-	s := server.NewMCPServer("User API", "1.0.0")
+	s := mcp.NewServer(&mcp.Implementation{
+		Name:    "User API",
+		Version: "1.0.0",
+	}, nil)
 
-	// 3. Register the generated tools
-	myapp.RegisterUserServiceMCP(s, client)
+	// 3. Register the generated tools (with optional middleware)
+	myappv1.ForwardUserServiceToConnect(s, client,
+		mcpruntime.WithMiddleware(myAuthMiddleware),
+	)
 
-	// 4. Serve
-	if err := server.ServeStdio(s); err != nil {
+	// 4. Serve via stdio
+	if err := s.Run(context.Background(), mcp.NewStdioTransport()); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }
@@ -95,7 +100,7 @@ func main() {
 `proto2mcp` uses a two-phase compilation architecture:
 
 1. **Phase 1: Extract** (`pkg/extract`) - Converts Protobuf descriptors into a normalized Intermediate Representation (IR). This phase is isolated and reusable.
-2. **Phase 2: Emit** (`pkg/emit`) - Generates the target code (Go) from the IR. 
+2. **Phase 2: Emit** (`internal/emit`) - Generates the target code (Go) from the IR. 
 
 This separation allows the `extract` package to be used independently by AI API Gateways for dynamic runtime tool extraction (V3).
 
