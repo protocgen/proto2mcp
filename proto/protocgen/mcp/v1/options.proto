@@ -19,9 +19,10 @@ extend google.protobuf.FileOptions {
 }
 
 enum FailureStrategy {
-  FAIL_FAST = 0;
-  PARTIAL_RESULT = 1;
-  ROLLBACK = 2;
+  FAILURE_STRATEGY_UNSPECIFIED = 0;
+  FAILURE_STRATEGY_FAIL_FAST = 1;
+  FAILURE_STRATEGY_PARTIAL_RESULT = 2;
+  FAILURE_STRATEGY_ROLLBACK = 3;
 }
 
 message MacroStep {
