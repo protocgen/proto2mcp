@@ -10,18 +10,29 @@ type MacroStepDef struct {
 	ToolName     string
 	Parallel     bool
 	OutputKey    string
-	InputMapping map[string]string // field → JSONPath expression
+	// InputMapping maps input field names to JSONPath expressions for
+	// wiring output from previous steps into the current step's input.
+	InputMapping map[string]string
 }
 
 // FailureStrategy defines how macro-tool failures are handled.
 type FailureStrategy int
 
 const (
-	// FailFast aborts execution immediately on the first error.
-	FailFast FailureStrategy = iota
-	// PartialResult continues execution and returns successful results alongside errors.
+	// FailureStrategyUnspecified is the zero value (proto: FAILURE_STRATEGY_UNSPECIFIED = 0).
+	FailureStrategyUnspecified FailureStrategy = iota
+	// FailFast aborts execution immediately on the first error (proto: FAILURE_STRATEGY_FAIL_FAST = 1).
+	FailFast
+	// PartialResult continues execution and returns successful results alongside errors (proto: FAILURE_STRATEGY_PARTIAL_RESULT = 2).
 	PartialResult
-	// Rollback attempts to undo previous steps on failure (requires saga support).
+	// Rollback attempts to undo previous steps on failure.
+	//
+	// V3: For production saga/rollback patterns, use Temporal workflows
+	// rather than implementing rollback logic in the in-process executor.
+	// The in-process MacroExecutor should only handle FailFast and
+	// PartialResult strategies. Temporal provides durable execution,
+	// visibility, and battle-tested compensation patterns.
+	// (proto: FAILURE_STRATEGY_ROLLBACK = 3)
 	Rollback
 )
 
