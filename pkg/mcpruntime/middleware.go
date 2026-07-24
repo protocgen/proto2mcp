@@ -28,30 +28,57 @@ type CallToolResult struct {
 	IsError bool
 }
 
-// Middleware intercepts tool calls for auth, logging, metrics, etc.
-type Middleware interface {
-	// HandleToolCall wraps a tool invocation. Implementations should call next to proceed.
+// ToolInterceptor intercepts tool call invocations for authorization,
+// logging, metrics, tenant injection, etc.
+//
+// Implementations should call next to proceed with the tool call,
+// or return early to short-circuit (e.g., for auth failures).
+type ToolInterceptor interface {
+	// HandleToolCall wraps a tool invocation. Call next to proceed.
 	HandleToolCall(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error)
-	// FilterTools filters the list of tools visible to the caller.
-	// V1 default: returns all tools unchanged.
-	// V2: per-tenant filtering based on context.
+}
+
+// DiscoveryInterceptor filters the list of tools visible to the caller.
+// This is a separate concern from tool invocation — it controls what
+// tools appear in the MCP tools/list response.
+//
+// V1: Default implementation returns all tools unchanged.
+// V2: Per-tenant filtering based on context (e.g., role-based tool visibility).
+type DiscoveryInterceptor interface {
+	// FilterTools filters tools visible to the caller. Return a subset
+	// of the input slice to hide tools from the current context.
 	FilterTools(ctx context.Context, tools []ToolDefinition) []ToolDefinition
 }
 
-// MiddlewareFunc is an adapter for simple middleware that only wraps HandleToolCall.
-type MiddlewareFunc func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error)
+// Middleware combines both ToolInterceptor and DiscoveryInterceptor.
+// Implement this interface when your middleware needs to control both
+// tool execution and tool visibility (e.g., a full AuthZ middleware).
+//
+// For middleware that only wraps tool calls (logging, metrics, tracing),
+// use ToolInterceptorFunc instead.
+type Middleware interface {
+	ToolInterceptor
+	DiscoveryInterceptor
+}
+
+// ToolInterceptorFunc is an adapter for simple middleware that only wraps
+// tool calls without filtering tool visibility. It implements the full
+// Middleware interface with a pass-through FilterTools.
+type ToolInterceptorFunc func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error)
 
 // HandleToolCall delegates to the underlying function.
-func (f MiddlewareFunc) HandleToolCall(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+func (f ToolInterceptorFunc) HandleToolCall(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
 	return f(ctx, req, next)
 }
 
-// FilterTools is a pass-through for MiddlewareFunc.
-func (f MiddlewareFunc) FilterTools(ctx context.Context, tools []ToolDefinition) []ToolDefinition {
+// FilterTools is a pass-through — ToolInterceptorFunc does not filter tools.
+func (f ToolInterceptorFunc) FilterTools(_ context.Context, tools []ToolDefinition) []ToolDefinition {
 	return tools
 }
 
 // ChainMiddleware chains multiple middleware in order (first middleware is outermost).
+// Each middleware's HandleToolCall wraps the next, and FilterTools is applied
+// sequentially across all middleware.
 func ChainMiddleware(middlewares ...Middleware) Middleware {
 	return &middlewareChain{middlewares: middlewares}
 }
@@ -61,7 +88,7 @@ type middlewareChain struct {
 }
 
 func (c *middlewareChain) HandleToolCall(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
-	// Build the chain from innermost to outermost
+	// Build the chain from innermost to outermost.
 	chain := next
 	for i := len(c.middlewares) - 1; i >= 0; i-- {
 		mw := c.middlewares[i]

@@ -57,23 +57,24 @@ buf generate
 package main
 
 import (
-	"context"
 	"log"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-	"github.com/myorg/myrepo/gen/go/myapp/v1"
+	"github.com/modelcontextprotocol/go-sdk/server"
+	"github.com/protocgen/proto2mcp/pkg/mcpruntime"
+	myappv1 "github.com/myorg/myrepo/gen/go/myapp/v1"
 )
 
 func main() {
 	// 1. Initialize your existing gRPC/Connect client
-	client := myapp.NewUserServiceClient(...)
+	client := myappv1.NewUserServiceClient(...)
 
 	// 2. Create an MCP server
 	s := server.NewMCPServer("User API", "1.0.0")
 
-	// 3. Register the generated tools
-	myapp.RegisterUserServiceMCP(s, client)
+	// 3. Register the generated tools (with optional middleware)
+	myappv1.ForwardUserServiceToConnect(s, client,
+		mcpruntime.WithMiddleware(myAuthMiddleware),
+	)
 
 	// 4. Serve
 	if err := server.ServeStdio(s); err != nil {

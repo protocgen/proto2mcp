@@ -58,9 +58,14 @@ message PromptTemplate {
 message ServiceMCPOptions {
   string tool_name_prefix = 1;
   string description = 2;
-  repeated PromptTemplate prompts = 10; // V3: MCP Prompts
 }
 
 message FileMCPOptions {
   bool skip = 1; // skip entire file
+
+  // V3: MCP Prompts. Defined at file level because prompts typically
+  // orchestrate tools across multiple services (e.g., an "OnboardPatient"
+  // prompt might use tools from PatientService, BillingService, and
+  // NotificationService). File-level scope allows this naturally.
+  repeated PromptTemplate prompts = 10;
 }
