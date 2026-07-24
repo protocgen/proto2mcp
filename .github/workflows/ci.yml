@@ -85,4 +85,4 @@ jobs:
           version: latest
 
       - name: Buf lint
-        run: buf lint proto
+        run: buf lint
