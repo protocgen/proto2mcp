@@ -1,0 +1,4 @@
+version: v2
+name: buf.build/protocgen/mcp
+deps:
+  - buf.build/bufbuild/protovalidate
