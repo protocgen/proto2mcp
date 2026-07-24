@@ -10,7 +10,9 @@ type MacroStepDef struct {
 	ToolName     string
 	Parallel     bool
 	OutputKey    string
-	InputMapping map[string]string // field → JSONPath expression
+	// InputMapping maps input field names to JSONPath expressions for
+	// wiring output from previous steps into the current step's input.
+	InputMapping map[string]string
 }
 
 // FailureStrategy defines how macro-tool failures are handled.
