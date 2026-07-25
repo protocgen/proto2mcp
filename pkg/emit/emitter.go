@@ -10,10 +10,6 @@ const (
 	runtimePkg = "github.com/protocgen/proto2mcp/pkg/mcpruntime"
 	// connectPkg is the import path for ConnectRPC.
 	connectPkg = "connectrpc.com/connect"
-	// protojsonPkg is the import path for protojson.
-	protojsonPkg = "google.golang.org/protobuf/encoding/protojson"
-	// protoPkg is the import path for proto.
-	protoPkg = "google.golang.org/protobuf/proto"
 )
 
 // TypeRef holds a Go type reference for code generation.
