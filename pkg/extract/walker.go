@@ -1,11 +1,23 @@
 package extract
 
 import (
+	"fmt"
 	"strings"
 
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
+)
+
+// Extension field numbers for MCP annotations.
+// Source: proto/protocgen/mcp/v1/options.proto
+const (
+	// extMethodOptions is the field number for MethodMCPOptions on google.protobuf.MethodOptions.
+	extMethodOptions protoreflect.FieldNumber = 1179
+	// extServiceOptions is the field number for ServiceMCPOptions on google.protobuf.ServiceOptions.
+	extServiceOptions protoreflect.FieldNumber = 1180
+	// extFileOptions is the field number for FileMCPOptions on google.protobuf.FileOptions.
+	extFileOptions protoreflect.FieldNumber = 1181
 )
 
 // ExtractFile processes a single protogen.File into a FileIR.
@@ -52,6 +64,13 @@ func ExtractFile(file *protogen.File) (*FileIR, error) {
 		}
 
 		ir.Services = append(ir.Services, *svcIR)
+	}
+
+	// Fail the build if any WarnError-level warnings were found.
+	for _, w := range ir.Warnings {
+		if w.Severity == WarnError {
+			return ir, fmt.Errorf("extraction error in %s: %s: %s", ir.FileName, w.Method, w.Message)
+		}
 	}
 
 	return ir, nil
@@ -170,7 +189,7 @@ func readMethodOptions(method *protogen.Method) *methodOptions {
 
 	var mOpts *methodOptions
 	opts.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		if fd.IsExtension() && fd.Number() == 1179 {
+		if fd.IsExtension() && fd.Number() == extMethodOptions {
 			mOpts = &methodOptions{}
 			msg := v.Message()
 			msg.Range(func(subFd protoreflect.FieldDescriptor, subV protoreflect.Value) bool {
@@ -212,7 +231,7 @@ func readServiceOptions(svc *protogen.Service) *serviceOptions {
 
 	var sOpts *serviceOptions
 	opts.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		if fd.IsExtension() && fd.Number() == 1180 {
+		if fd.IsExtension() && fd.Number() == extServiceOptions {
 			sOpts = &serviceOptions{}
 			msg := v.Message()
 			msg.Range(func(subFd protoreflect.FieldDescriptor, subV protoreflect.Value) bool {
@@ -240,7 +259,7 @@ func readFileOptions(file *protogen.File) *fileOptions {
 
 	var fOpts *fileOptions
 	opts.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		if fd.IsExtension() && fd.Number() == 1181 {
+		if fd.IsExtension() && fd.Number() == extFileOptions {
 			fOpts = &fileOptions{}
 			msg := v.Message()
 			msg.Range(func(subFd protoreflect.FieldDescriptor, subV protoreflect.Value) bool {

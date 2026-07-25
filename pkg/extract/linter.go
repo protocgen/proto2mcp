@@ -67,6 +67,15 @@ func LintMethod(method *protogen.Method) []Warning {
 		}
 	}
 
+	// Also lint the output message for Any types and deep nesting.
+	if method.Output != nil {
+		msgWarnings := LintMessage(method.Output, 0)
+		for _, w := range msgWarnings {
+			w.Method = methodName
+			warnings = append(warnings, w)
+		}
+	}
+
 	return warnings
 }
 

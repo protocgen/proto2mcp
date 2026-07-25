@@ -33,7 +33,7 @@ func ExtractConstraints(field protoreflect.FieldDescriptor) map[string]any {
 	var descriptions []string
 
 	// String constraints
-	if s := rules.GetString_(); s != nil {
+	if s := rules.GetString(); s != nil {
 		if s.MinLen != nil {
 			result["minLength"] = *s.MinLen
 		}
@@ -44,14 +44,10 @@ func ExtractConstraints(field protoreflect.FieldDescriptor) map[string]any {
 			result["pattern"] = *s.Pattern
 		}
 		if s.MinBytes != nil {
-			if _, exists := result["minLength"]; !exists {
-				result["minLength"] = *s.MinBytes
-			}
+			descriptions = append(descriptions, fmt.Sprintf("Minimum %d bytes", *s.MinBytes))
 		}
 		if s.MaxBytes != nil {
-			if _, exists := result["maxLength"]; !exists {
-				result["maxLength"] = *s.MaxBytes
-			}
+			descriptions = append(descriptions, fmt.Sprintf("Maximum %d bytes", *s.MaxBytes))
 		}
 		if s.Prefix != nil {
 			descriptions = append(descriptions, fmt.Sprintf("Must start with '%s'", *s.Prefix))
@@ -73,7 +69,7 @@ func ExtractConstraints(field protoreflect.FieldDescriptor) map[string]any {
 		} else if s.GetHostname() {
 			result["format"] = "hostname"
 		} else if s.GetIp() {
-			result["format"] = "ipv4"
+			descriptions = append(descriptions, "Must be a valid IP address (IPv4 or IPv6)")
 		} else if s.GetIpv4() {
 			result["format"] = "ipv4"
 		} else if s.GetIpv6() {

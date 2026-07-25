@@ -11,6 +11,9 @@ import (
 // MaxRecursionDepth is the maximum nesting depth for schema generation.
 const MaxRecursionDepth = 6
 
+// anyFullName is the fully qualified name for google.protobuf.Any.
+const anyFullName = "google.protobuf.Any"
+
 // MessageToSchema converts a proto message to a JSON Schema as json.RawMessage.
 // It recursively walks fields, handling nested messages, enums, maps, oneofs,
 // and repeated fields. Recurses up to MaxRecursionDepth levels.
@@ -54,20 +57,39 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 
 	if field.Desc.IsMap() {
 		jsonType = "object"
-		valField := field.Message.Fields[1] // Value field in map entry
-		vsf := protoFieldToSchemaField(valField, depth+1)
-		addProps = &SchemaField{
-			Type:                 vsf.Type,
-			Format:               vsf.Format,
-			Description:          vsf.Description,
-			Properties:           vsf.Properties,
-			Items:                vsf.Items,
-			AdditionalProperties: vsf.AdditionalProperties,
-			Enum:                 vsf.Enum,
+		// Locate map value field by field number 2 (proto map entry convention)
+		// rather than positional index, which is fragile.
+		valDesc := field.Message.Desc.Fields().ByNumber(2)
+		if valDesc != nil {
+			// Find the matching protogen.Field for the value descriptor.
+			for _, f := range field.Message.Fields {
+				if f.Desc.Number() == valDesc.Number() {
+					vsf := protoFieldToSchemaField(f, depth+1)
+					addProps = &SchemaField{
+						Type:                 vsf.Type,
+						Format:               vsf.Format,
+						Description:          vsf.Description,
+						Properties:           vsf.Properties,
+						Items:                vsf.Items,
+						AdditionalProperties: vsf.AdditionalProperties,
+						Enum:                 vsf.Enum,
+					}
+					break
+				}
+			}
 		}
 	} else if kind == protoreflect.MessageKind || kind == protoreflect.GroupKind {
 		fullName := field.Message.Desc.FullName()
-		if isWellKnown(fullName) {
+
+		// google.protobuf.Any cannot be represented as JSON Schema.
+		// The linter emits WarnError for this; here we emit a placeholder.
+		if string(fullName) == anyFullName {
+			jsonType = "object"
+			if descBuilder.Len() > 0 {
+				descBuilder.WriteString("\n")
+			}
+			descBuilder.WriteString("WARNING: google.protobuf.Any cannot be represented as JSON Schema")
+		} else if isWellKnown(fullName) {
 			if wk, ok := wellKnownSchema(fullName); ok && wk != nil {
 				jsonType = wk.Type
 				format = wk.Format
@@ -130,8 +152,15 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 		sf.Enum = enum
 	}
 
-	// Make sure fields that are part of a oneof are just listed as fields.
-	// proto3 optional fields are structurally identical to oneofs with a single field.
+	// Wire in buf.validate constraints and required flag.
+	constraints := ExtractConstraints(field.Desc)
+	if constraints != nil {
+		sf.Constraints = constraints
+	}
+	if IsFieldRequired(field.Desc) {
+		sf.Required = true
+	}
+
 	return sf
 }
 
