@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package healthcare.v1;
+
+import "protocgen/mcp/v1/options.proto";
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/protocgen/proto2mcp/examples/healthcare/gen/healthcare/v1;healthcarev1";
+
+service PatientService {
+  option (protocgen.mcp.v1.service) = {
+    description: "Service for managing patient records and appointments."
+  };
+
+  // Get a patient by their unique identifier.
+  rpc GetPatient(GetPatientRequest) returns (GetPatientResponse) {
+    option (protocgen.mcp.v1.method) = {
+      description: "Look up a patient record by ID"
+      read_only: true
+    };
+  }
+
+  // List patients with optional filtering.
+  rpc ListPatients(ListPatientsRequest) returns (ListPatientsResponse) {
+    option (protocgen.mcp.v1.method) = {
+      description: "List multiple patients, optionally filtering by name or status"
+      read_only: true
+    };
+  }
+
+  // Create a new appointment for a patient.
+  rpc CreateAppointment(CreateAppointmentRequest) returns (CreateAppointmentResponse) {
+    option (protocgen.mcp.v1.method) = {
+      description: "Schedule a new appointment for an existing patient"
+    };
+  }
+}
+
+message GetPatientRequest {
+  string patient_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetPatientResponse {
+  Patient patient = 1;
+}
+
+message ListPatientsRequest {
+  string name_filter = 1;
+  int32 limit = 2 [(buf.validate.field).int32.gt = 0, (buf.validate.field).int32.lte = 100];
+}
+
+message ListPatientsResponse {
+  repeated Patient patients = 1;
+}
+
+message CreateAppointmentRequest {
+  string patient_id = 1 [(buf.validate.field).string.uuid = true];
+  string doctor_id = 2 [(buf.validate.field).string.uuid = true];
+  string time_rfc3339 = 3;
+}
+
+message CreateAppointmentResponse {
+  string appointment_id = 1;
+  string status = 2;
+}
+
+message Patient {
+  string id = 1;
+  string name = 2;
+  int32 age = 3;
+}
