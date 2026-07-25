@@ -4,6 +4,18 @@ import (
 	"encoding/json"
 )
 
+// FileIR represents the extraction result for an entire proto file.
+type FileIR struct {
+	// FileName is the proto file name (e.g., "myapp/v1/patient.proto").
+	FileName string
+	// Services is the list of services extracted from the file.
+	Services []ServiceIR
+	// Warnings contains file-level linter warnings.
+	Warnings []Warning
+	// Skip is true if the file was annotated with skip=true.
+	Skip bool
+}
+
 // ServiceIR represents a protobuf service extracted for MCP generation.
 type ServiceIR struct {
 	// Name is the Go name of the service.
@@ -110,7 +122,7 @@ const (
 type SchemaField struct {
 	// Name of the field.
 	Name string
-	// Type of the field: "string", "integer", "boolean", "object", "array".
+	// Type of the field: "string", "integer", "number", "boolean", "object", "array".
 	Type string
 	// Description of the field.
 	Description string
@@ -122,8 +134,110 @@ type SchemaField struct {
 	Properties []SchemaField
 	// Items represents the item type for arrays.
 	Items *SchemaField
+	// AdditionalProperties represents the value type for proto maps.
+	// When set, Type should be "object" and Properties should be empty.
+	AdditionalProperties *SchemaField
+	// OneOf represents mutually exclusive alternatives (proto oneof).
+	OneOf []SchemaField
 	// Enum holds possible values for proto enums.
 	Enum []string
-	// Constraints holds validation constraints (from buf.validate).
+	// Constraints holds validation constraints (from buf.validate):
+	// keys are JSON Schema keywords like "minLength", "pattern", "minimum".
 	Constraints map[string]any
+}
+
+// jsonSchema is the internal representation used for JSON Schema marshaling.
+type jsonSchema struct {
+	Type                 string         `json:"type,omitempty"`
+	Description          string         `json:"description,omitempty"`
+	Format               string         `json:"format,omitempty"`
+	Properties           map[string]any `json:"properties,omitempty"`
+	Required             []string       `json:"required,omitempty"`
+	Items                any            `json:"items,omitempty"`
+	AdditionalProperties any            `json:"additionalProperties,omitempty"`
+	OneOf                []any          `json:"oneOf,omitempty"`
+	Enum                 []string       `json:"enum,omitempty"`
+}
+
+// MarshalSchemaFields converts a list of SchemaFields into a JSON Schema
+// object (as json.RawMessage). This is used to populate ToolIR.InputSchema.
+func MarshalSchemaFields(fields []SchemaField) (json.RawMessage, error) {
+	schema := jsonSchema{
+		Type:       "object",
+		Properties: make(map[string]any),
+	}
+
+	var required []string
+	for _, f := range fields {
+		prop := fieldToJSONSchema(f)
+		schema.Properties[f.Name] = prop
+		if f.Required {
+			required = append(required, f.Name)
+		}
+	}
+	if len(required) > 0 {
+		schema.Required = required
+	}
+
+	return json.Marshal(schema)
+}
+
+// fieldToJSONSchema converts a single SchemaField to a JSON Schema property.
+func fieldToJSONSchema(f SchemaField) map[string]any {
+	prop := make(map[string]any)
+
+	if f.Type != "" {
+		prop["type"] = f.Type
+	}
+	if f.Description != "" {
+		prop["description"] = f.Description
+	}
+	if f.Format != "" {
+		prop["format"] = f.Format
+	}
+	if len(f.Enum) > 0 {
+		prop["enum"] = f.Enum
+	}
+
+	// Nested object
+	if f.Type == "object" && len(f.Properties) > 0 {
+		props := make(map[string]any)
+		var req []string
+		for _, sub := range f.Properties {
+			props[sub.Name] = fieldToJSONSchema(sub)
+			if sub.Required {
+				req = append(req, sub.Name)
+			}
+		}
+		prop["properties"] = props
+		if len(req) > 0 {
+			prop["required"] = req
+		}
+	}
+
+	// Map type (additionalProperties)
+	if f.AdditionalProperties != nil {
+		prop["additionalProperties"] = fieldToJSONSchema(*f.AdditionalProperties)
+	}
+
+	// Array type
+	if f.Items != nil {
+		prop["items"] = fieldToJSONSchema(*f.Items)
+	}
+
+	// Oneof
+	if len(f.OneOf) > 0 {
+		var oneOf []any
+		for _, alt := range f.OneOf {
+			oneOf = append(oneOf, fieldToJSONSchema(alt))
+		}
+		prop["oneOf"] = oneOf
+	}
+
+	// Validation constraints from buf.validate
+	for k, v := range f.Constraints {
+		prop[k] = v
+	}
+
+	return prop
 }
