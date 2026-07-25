@@ -29,7 +29,7 @@ func TestIsWellKnown(t *testing.T) {
 		{"ListValue", "google.protobuf.ListValue", true},
 		{"FieldMask", "google.protobuf.FieldMask", true},
 		{"Empty", "google.protobuf.Empty", true},
-		{"Any", "google.protobuf.Any", false},
+		{"Any", "google.protobuf.Any", true},
 		{"Custom", "com.example.MyMessage", false},
 	}
 

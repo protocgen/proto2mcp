@@ -20,7 +20,8 @@ func isWellKnown(fullName protoreflect.FullName) bool {
 		"google.protobuf.Value",
 		"google.protobuf.ListValue",
 		"google.protobuf.FieldMask",
-		"google.protobuf.Empty":
+		"google.protobuf.Empty",
+		"google.protobuf.Any":
 		return true
 	default:
 		return false

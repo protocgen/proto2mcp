@@ -154,8 +154,19 @@ func extractMethod(method *protogen.Method, svcName, svcPrefix string) *ToolIR {
 		})
 	}
 
-	// InputSchema will be wired up later
-	tool.InputSchema = nil
+	// Generate JSON Schema for the input message.
+	if method.Input != nil {
+		schema, err := MessageToSchema(method.Input)
+		if err != nil {
+			tool.Warnings = append(tool.Warnings, Warning{
+				Severity: WarnError,
+				Method:   toolName,
+				Message:  fmt.Sprintf("failed to generate input schema: %v", err),
+			})
+		} else {
+			tool.InputSchema = schema
+		}
+	}
 
 	return tool
 }
