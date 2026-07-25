@@ -6,6 +6,4 @@ import mcpruntime "github.com/protocgen/proto2mcp/pkg/mcpruntime"
 type EmptyServiceMCPHandler interface{}
 
 func RegisterEmptyServiceMCP(registry *mcpruntime.ToolRegistry, handler EmptyServiceMCPHandler, opts ...mcpruntime.Option) {
-	cfg := mcpruntime.NewConfig(opts...)
-
 }

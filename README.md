@@ -50,7 +50,7 @@ RegisterPatientServiceMCP(registry, myHandler)
 
 ## Architecture
 
-```
+```text
 .proto files
     │
     ▼
@@ -90,14 +90,15 @@ Use the `protocgen.mcp.v1` options to customize how tools are generated.
 You can wrap tools with middleware at registration time. Middleware can inspect the request, modify context, or handle errors globally.
 
 ```go
-func loggingMiddleware(next mcpruntime.HandlerFunc) mcpruntime.HandlerFunc {
-    return func(ctx context.Context, req mcpruntime.ToolRequest) (any, error) {
-        log.Printf("Calling tool %s", req.Name)
-        return next(ctx, req)
-    }
+// loggingInterceptor implements mcpruntime.ToolInterceptor.
+type loggingInterceptor struct{}
+
+func (l *loggingInterceptor) HandleToolCall(ctx context.Context, req mcpruntime.ToolRequest, next mcpruntime.HandlerFunc) (*mcpruntime.CallToolResult, error) {
+    log.Printf("Calling tool %s", req.ToolName)
+    return next(ctx, req)
 }
 
-RegisterPatientServiceMCP(registry, handler, mcpruntime.WithMiddleware(loggingMiddleware))
+RegisterPatientServiceMCP(registry, handler, mcpruntime.WithMiddleware(&loggingInterceptor{}))
 ```
 
 ## ConnectRPC Integration

@@ -23,12 +23,12 @@ go run main.go
 
 You should see output similar to this:
 
-```
-Registered 3 tools
-  - get_patient: Look up a patient record by ID
-  - list_patients: List multiple patients, optionally filtering by name or status
-  - create_appointment: Schedule a new appointment for an existing patient
-MCP server initialized successfully. Ready to receive requests.
+```text
+Registered 3 tools:
+  - PatientService_GetPatient: Look up a patient record by ID
+  - PatientService_ListPatients: List multiple patients
+  - PatientService_CreateAppointment: Schedule a new appointment for an existing patient
+MCP server ready.
 ```
 
 ## How it Works

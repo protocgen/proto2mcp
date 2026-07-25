@@ -111,7 +111,7 @@ func RegisterPatientServiceMCP(registry *mcpruntime.ToolRegistry, handler Patien
 type myHandler struct{}
 
 func (h *myHandler) GetPatient(_ context.Context, req *GetPatientRequest) (*GetPatientResponse, error) {
-	log.Printf("GetPatient called for %s", req.PatientId)
+	log.Println("GetPatient called")
 	return &GetPatientResponse{PatientId: req.PatientId}, nil
 }
 
@@ -121,7 +121,7 @@ func (h *myHandler) ListPatients(_ context.Context, req *ListPatientsRequest) (*
 }
 
 func (h *myHandler) CreateAppointment(_ context.Context, req *CreateAppointmentRequest) (*CreateAppointmentResponse, error) {
-	log.Printf("CreateAppointment called for patient %s", req.PatientId)
+	log.Println("CreateAppointment called")
 	return &CreateAppointmentResponse{AppointmentId: "appt-123"}, nil
 }
 
