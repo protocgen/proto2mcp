@@ -6,6 +6,8 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+// BenchmarkUnmarshalToolInput measures the cost of deserializing JSON
+// tool arguments into a protobuf Struct.
 func BenchmarkUnmarshalToolInput(b *testing.B) {
 	b.ReportAllocs()
 	input := []byte(`{"patient_id": "P-12345", "include_history": true, "max_results": 100}`)
@@ -18,6 +20,8 @@ func BenchmarkUnmarshalToolInput(b *testing.B) {
 	}
 }
 
+// BenchmarkMarshalToolResult measures the cost of serializing a
+// protobuf Struct into JSON for MCP tool results.
 func BenchmarkMarshalToolResult(b *testing.B) {
 	b.ReportAllocs()
 	msg, _ := structpb.NewStruct(map[string]interface{}{
@@ -34,6 +38,8 @@ func BenchmarkMarshalToolResult(b *testing.B) {
 	}
 }
 
+// BenchmarkSanitizeErrorMessage measures the cost of sanitizing error
+// messages with sub-benchmarks for clean, path, host:port, and long inputs.
 func BenchmarkSanitizeErrorMessage(b *testing.B) {
 	b.Run("clean", func(b *testing.B) {
 		b.ReportAllocs()

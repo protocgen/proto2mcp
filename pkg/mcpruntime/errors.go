@@ -48,19 +48,19 @@ var (
 )
 
 // SanitizeErrorMessage strips internal details from error messages.
-// Takes only the first line, caps at 200 chars, and removes anything
-// that looks like a stack trace, internal file path, or host:port.
+// Takes only the first line, checks for sensitive patterns on the full
+// content, then caps at 200 chars. This ordering prevents truncation
+// from splitting a host:port or path at the boundary and bypassing
+// the pattern checks.
 func SanitizeErrorMessage(msg string) string {
 	// Take only the first line.
 	if idx := strings.IndexByte(msg, '\n'); idx != -1 {
 		msg = msg[:idx]
 	}
 
-	// Cap length to prevent excessively long messages.
-	const maxLen = 200
-	if len(msg) > maxLen {
-		msg = msg[:maxLen-3] + "..."
-	}
+	// Check for sensitive patterns on the FULL first line, before truncation.
+	// Truncation could split "192.168.1.1:5432" into "192.168.1.1:54..."
+	// which would bypass the host:port regex.
 
 	// Check for stack trace / panic keywords.
 	for _, pattern := range []string{"goroutine", "panic:", ".go:", "runtime."} {
@@ -77,6 +77,12 @@ func SanitizeErrorMessage(msg string) string {
 	// Strip host:port patterns (e.g., backend-svc:50051).
 	if hostPortPattern.MatchString(msg) {
 		return "invalid input parameters"
+	}
+
+	// Cap length to prevent excessively long messages.
+	const maxLen = 200
+	if len(msg) > maxLen {
+		msg = msg[:maxLen-3] + "..."
 	}
 
 	return msg

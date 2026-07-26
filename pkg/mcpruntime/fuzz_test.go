@@ -6,6 +6,8 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+// FuzzUnmarshalToolInput verifies that UnmarshalToolInput never panics
+// regardless of the byte content in ToolRequest.Arguments.
 func FuzzUnmarshalToolInput(f *testing.F) {
 	// Seed corpus
 	f.Add([]byte(`{"key": "value"}`))
@@ -26,6 +28,8 @@ func FuzzUnmarshalToolInput(f *testing.F) {
 	})
 }
 
+// FuzzSanitizeErrorMessage verifies that SanitizeErrorMessage always
+// returns a string of at most 200 characters, regardless of input.
 func FuzzSanitizeErrorMessage(f *testing.F) {
 	// Seed corpus
 	f.Add("simple error")
