@@ -127,6 +127,20 @@ func ExtractConstraints(field protoreflect.FieldDescriptor) map[string]any {
 		}
 	}
 
+	// CEL constraints
+	for _, expr := range rules.GetCelExpression() {
+		descriptions = append(descriptions, fmt.Sprintf("CEL validation: %s", expr))
+	}
+	for _, celRule := range rules.GetCel() {
+		if celRule != nil && celRule.GetExpression() != "" {
+			if celRule.GetMessage() != "" {
+				descriptions = append(descriptions, fmt.Sprintf("Validation rule: %s (CEL: %s)", celRule.GetMessage(), celRule.GetExpression()))
+			} else {
+				descriptions = append(descriptions, fmt.Sprintf("CEL validation: %s", celRule.GetExpression()))
+			}
+		}
+	}
+
 	if len(descriptions) > 0 {
 		result["_constraint_notes"] = strings.Join(descriptions, "; ")
 	}

@@ -199,6 +199,12 @@ func TestMessageToSchema(t *testing.T) {
 		Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_ENUM),
 		TypeName: strPtr(".testpkg.TestEnum"),
 		JsonName: strPtr("enumField"),
+	}, &descriptorpb.FieldDescriptorProto{
+		Name:     strPtr("bytes_field"),
+		Number:   func(i int32) *int32 { return &i }(8),
+		Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+		Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_BYTES),
+		JsonName: strPtr("bytesField"),
 	})
 	
 	// Add Oneof
@@ -264,6 +270,19 @@ func TestMessageToSchema(t *testing.T) {
 		if sf, ok := props["enumField"].(map[string]interface{}); !ok || sf["type"] != "string" {
 			t.Error("expected enumField with type string")
 		}
+		// Check bytes field
+		if sf, ok := props["bytesField"].(map[string]interface{}); !ok {
+			t.Error("expected bytesField in properties")
+		} else {
+			if sf["type"] != "string" || sf["format"] != "byte" {
+				t.Errorf("expected bytesField type=string, format=byte; got type=%v, format=%v", sf["type"], sf["format"])
+			}
+			desc, _ := sf["description"].(string)
+			if !strings.Contains(desc, "base64-encoded") {
+				t.Errorf("expected bytesField description to contain base64 warning, got %q", desc)
+			}
+		}
+
 		// Check additionalProperties: false
 		if schema["additionalProperties"] != false {
 			t.Error("expected additionalProperties: false on top-level schema")
