@@ -35,6 +35,8 @@ func generateConnectForwarder(f *jen.File, info ServiceEmitInfo) {
 	)
 	
 	for _, t := range info.Tools {
+		mcpRuntimePkg := "github.com/protocgen/proto2mcp/pkg/mcpruntime"
+
 		f.Func().Params(
 			jen.Id("f").Op("*").Id(structName),
 		).Id(t.Tool.MethodName).Params(
@@ -44,9 +46,25 @@ func generateConnectForwarder(f *jen.File, info ServiceEmitInfo) {
 			jen.Op("*").Qual(t.OutputType.ImportPath, t.OutputType.TypeName),
 			jen.Error(),
 		).Block(
+			jen.Id("connectReq").Op(":=").Qual(connectPkg, "NewRequest").Call(jen.Id("req")),
+			// Propagate headers from context (e.g., auth tokens, trace IDs).
+			jen.If(
+				jen.Id("headers").Op(":=").Qual(mcpRuntimePkg, "HeadersFromContext").Call(jen.Id("ctx")),
+				jen.Id("headers").Op("!=").Nil(),
+			).Block(
+				jen.For(
+					jen.List(jen.Id("k"), jen.Id("vals")).Op(":=").Range().Id("headers"),
+				).Block(
+					jen.For(
+						jen.List(jen.Id("_"), jen.Id("v")).Op(":=").Range().Id("vals"),
+					).Block(
+						jen.Id("connectReq").Dot("Header").Call().Dot("Add").Call(jen.Id("k"), jen.Id("v")),
+					),
+				),
+			),
 			jen.List(jen.Id("resp"), jen.Err()).Op(":=").Id("f").Dot("client").Dot(t.Tool.MethodName).Call(
 				jen.Id("ctx"),
-				jen.Qual(connectPkg, "NewRequest").Call(jen.Id("req")),
+				jen.Id("connectReq"),
 			),
 			jen.If(jen.Err().Op("!=").Nil()).Block(
 				jen.Return(jen.Nil(), jen.Err()),

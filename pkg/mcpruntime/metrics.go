@@ -2,6 +2,7 @@ package mcpruntime
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -22,7 +23,7 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 		metric.WithDescription("Total number of MCP tool calls"),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating mcp_tool_calls_total counter: %w", err)
 	}
 
 	duration, err := meter.Float64Histogram("mcp_tool_call_duration_seconds",
@@ -30,7 +31,7 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 		metric.WithUnit("s"),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating mcp_tool_call_duration_seconds histogram: %w", err)
 	}
 
 	return &Metrics{

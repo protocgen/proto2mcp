@@ -14,6 +14,10 @@ const MaxRecursionDepth = 6
 // boolPtr is a helper to get a pointer to a boolean.
 func boolPtr(b bool) *bool { return &b }
 
+// boolFalse is a pre-allocated pointer to false, avoiding repeated
+// heap allocations for the common additionalProperties: false case.
+var boolFalse = boolPtr(false)
+
 // anyFullName is the fully qualified name for google.protobuf.Any.
 const anyFullName = "google.protobuf.Any"
 
@@ -64,6 +68,17 @@ func messageToSchemaFields(msg *protogen.Message, depth int) []SchemaField {
 	return fields
 }
 
+// schemaResult holds the type-specific fields resolved by the schema helpers.
+type schemaResult struct {
+	jsonType string
+	format   string
+	enum     []string
+	props    []SchemaField
+	addProps any
+	items    *SchemaField
+	descNote string // extra text to append to the description
+}
+
 // protoFieldToSchemaField converts a single proto field descriptor to a SchemaField.
 func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 	sf := SchemaField{
@@ -75,91 +90,26 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 		descBuilder.WriteString(strings.TrimSpace(field.Comments.Leading.String()))
 	}
 
-	var jsonType, format string
-	var enum []string
-	var props []SchemaField
-	var addProps any
-	var items *SchemaField
-
 	kind := field.Desc.Kind()
 
-	if field.Desc.IsMap() {
-		jsonType = "object"
-		// Locate map value field by field number 2 (proto map entry convention)
-		// rather than positional index, which is fragile.
-		valDesc := field.Message.Desc.Fields().ByNumber(2)
-		if valDesc != nil {
-			// Find the matching protogen.Field for the value descriptor.
-			for _, f := range field.Message.Fields {
-				if f.Desc.Number() == valDesc.Number() {
-					vsf := protoFieldToSchemaField(f, depth+1)
-					addProps = &SchemaField{
-						Type:                 vsf.Type,
-						Format:               vsf.Format,
-						Description:          vsf.Description,
-						Properties:           vsf.Properties,
-						Items:                vsf.Items,
-						AdditionalProperties: vsf.AdditionalProperties,
-						Enum:                 vsf.Enum,
-					}
-					break
-				}
-			}
-		}
-	} else if kind == protoreflect.MessageKind || kind == protoreflect.GroupKind {
-		fullName := field.Message.Desc.FullName()
-		sf.Title = string(field.Message.Desc.Name())
-		sf.AdditionalProperties = boolPtr(false)
+	var r schemaResult
+	switch {
+	case field.Desc.IsMap():
+		r = schemaForMap(field, depth)
+	case kind == protoreflect.MessageKind || kind == protoreflect.GroupKind:
+		r = schemaForMessage(field, &sf, depth)
+	case kind == protoreflect.EnumKind:
+		r = schemaForEnum(field)
+	default:
+		r = schemaForScalar(kind)
+	}
 
-		// google.protobuf.Any cannot be represented as JSON Schema.
-		// The linter emits WarnError for this; here we emit a placeholder.
-		if string(fullName) == anyFullName {
-			jsonType = "object"
-			if descBuilder.Len() > 0 {
-				descBuilder.WriteString("\n")
-			}
-			descBuilder.WriteString("WARNING: google.protobuf.Any cannot be represented as JSON Schema")
-		} else if isWellKnown(fullName) {
-			if wk, ok := wellKnownSchema(fullName); ok && wk != nil {
-				jsonType = wk.Type
-				format = wk.Format
-				props = wk.Properties
-				addProps = wk.AdditionalProperties
-				items = wk.Items
-				if wk.Description != "" {
-					if descBuilder.Len() > 0 {
-						descBuilder.WriteString("\n")
-					}
-					descBuilder.WriteString(wk.Description)
-				}
-			}
-		} else {
-			jsonType = "object"
-			addProps = boolPtr(false)
-			if depth >= MaxRecursionDepth {
-				if descBuilder.Len() > 0 {
-					descBuilder.WriteString("\n")
-				}
-				descBuilder.WriteString("...(truncated)...")
-			} else {
-				props = messageToSchemaFields(field.Message, depth+1)
-			}
+	// Append any type-specific description note.
+	if r.descNote != "" {
+		if descBuilder.Len() > 0 {
+			descBuilder.WriteString("\n")
 		}
-	} else if kind == protoreflect.EnumKind {
-		jsonType = "string"
-		for _, val := range field.Enum.Values {
-			enum = append(enum, string(val.Desc.Name()))
-		}
-	} else {
-		jsonType, format = protoKindToJSONType(kind)
-		if format == "int64" || format == "uint64" {
-			note := " (serialized as string for 64-bit precision)"
-			if descBuilder.Len() > 0 {
-				descBuilder.WriteString(note)
-			} else {
-				descBuilder.WriteString(strings.TrimSpace(note))
-			}
-		}
+		descBuilder.WriteString(r.descNote)
 	}
 
 	sf.Description = descBuilder.String()
@@ -167,20 +117,20 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 	if field.Desc.IsList() && !field.Desc.IsMap() {
 		sf.Type = "array"
 		sf.Items = &SchemaField{
-			Type:                 jsonType,
-			Format:               format,
-			Properties:           props,
-			AdditionalProperties: addProps,
-			Items:                items,
-			Enum:                 enum,
+			Type:                 r.jsonType,
+			Format:               r.format,
+			Properties:           r.props,
+			AdditionalProperties: r.addProps,
+			Items:                r.items,
+			Enum:                 r.enum,
 		}
 	} else {
-		sf.Type = jsonType
-		sf.Format = format
-		sf.Properties = props
-		sf.AdditionalProperties = addProps
-		sf.Items = items
-		sf.Enum = enum
+		sf.Type = r.jsonType
+		sf.Format = r.format
+		sf.Properties = r.props
+		sf.AdditionalProperties = r.addProps
+		sf.Items = r.items
+		sf.Enum = r.enum
 	}
 
 	// Wire in buf.validate constraints and required flag.
@@ -193,6 +143,87 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 	}
 
 	return sf
+}
+
+// schemaForMap handles proto map fields, returning an object type
+// with additionalProperties describing the map value type.
+func schemaForMap(field *protogen.Field, depth int) schemaResult {
+	r := schemaResult{jsonType: "object"}
+	valDesc := field.Message.Desc.Fields().ByNumber(2)
+	if valDesc == nil {
+		return r
+	}
+	for _, f := range field.Message.Fields {
+		if f.Desc.Number() == valDesc.Number() {
+			vsf := protoFieldToSchemaField(f, depth+1)
+			r.addProps = &SchemaField{
+				Type:                 vsf.Type,
+				Format:               vsf.Format,
+				Description:          vsf.Description,
+				Properties:           vsf.Properties,
+				Items:                vsf.Items,
+				AdditionalProperties: vsf.AdditionalProperties,
+				Enum:                 vsf.Enum,
+			}
+			break
+		}
+	}
+	return r
+}
+
+// schemaForMessage handles proto message fields, including well-known types,
+// google.protobuf.Any, and user-defined nested messages.
+func schemaForMessage(field *protogen.Field, sf *SchemaField, depth int) schemaResult {
+	fullName := field.Message.Desc.FullName()
+	sf.Title = string(field.Message.Desc.Name())
+	sf.AdditionalProperties = boolFalse
+
+	if string(fullName) == anyFullName {
+		return schemaResult{
+			jsonType: "object",
+			descNote: "WARNING: google.protobuf.Any cannot be represented as JSON Schema",
+		}
+	}
+
+	if isWellKnown(fullName) {
+		if wk, ok := wellKnownSchema(fullName); ok && wk != nil {
+			return schemaResult{
+				jsonType: wk.Type,
+				format:   wk.Format,
+				props:    wk.Properties,
+				addProps: wk.AdditionalProperties,
+				items:    wk.Items,
+				descNote: wk.Description,
+			}
+		}
+	}
+
+	r := schemaResult{jsonType: "object", addProps: boolFalse}
+	if depth >= MaxRecursionDepth {
+		r.descNote = "...(truncated)..."
+	} else {
+		r.props = messageToSchemaFields(field.Message, depth+1)
+	}
+	return r
+}
+
+// schemaForEnum handles proto enum fields by extracting all enum value names.
+func schemaForEnum(field *protogen.Field) schemaResult {
+	r := schemaResult{jsonType: "string"}
+	for _, val := range field.Enum.Values {
+		r.enum = append(r.enum, string(val.Desc.Name()))
+	}
+	return r
+}
+
+// schemaForScalar handles scalar proto fields (string, int, bool, etc.).
+func schemaForScalar(kind protoreflect.Kind) schemaResult {
+	jsonType, format := protoKindToJSONType(kind)
+	r := schemaResult{jsonType: jsonType, format: format}
+	if format == "int64" || format == "uint64" {
+		r.descNote = "(serialized as string for 64-bit precision)"
+	}
+	return r
 }
 
 // protoKindToJSONType maps a protobuf field kind to JSON Schema type.
