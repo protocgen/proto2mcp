@@ -17,7 +17,7 @@ const PingService_PingDescription = ""
 
 var PingService_PingSchema = []byte("{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"}},\"additionalProperties\":false}")
 
-func RegisterPingServiceMCP(registry *mcpruntime.ToolRegistry, handler PingServiceMCPHandler, opts ...mcpruntime.Option) {
+func RegisterPingServiceMCP(registry mcpruntime.Registry, handler PingServiceMCPHandler, opts ...mcpruntime.Option) {
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
@@ -46,7 +46,7 @@ const HealthService_CheckStatusDescription = ""
 
 var HealthService_CheckStatusSchema = []byte("{\"type\":\"object\",\"additionalProperties\":false}")
 
-func RegisterHealthServiceMCP(registry *mcpruntime.ToolRegistry, handler HealthServiceMCPHandler, opts ...mcpruntime.Option) {
+func RegisterHealthServiceMCP(registry mcpruntime.Registry, handler HealthServiceMCPHandler, opts ...mcpruntime.Option) {
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{

@@ -26,7 +26,7 @@ func generateRegisterFunc(f *jen.File, info ServiceEmitInfo) {
 	handlerName := info.Service.Name + "MCPHandler"
 
 	f.Func().Id(funcName).Params(
-		jen.Id("registry").Op("*").Qual(runtimePkg, "ToolRegistry"),
+		jen.Id("registry").Qual(runtimePkg, "Registry"),
 		jen.Id("handler").Id(handlerName),
 		jen.Id("opts").Op("...").Qual(runtimePkg, "Option"),
 	).BlockFunc(func(g *jen.Group) {

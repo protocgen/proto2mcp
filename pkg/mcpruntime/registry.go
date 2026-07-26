@@ -1,8 +1,16 @@
 package mcpruntime
 
 import (
+	"encoding/json"
 	"sync"
 )
+
+// Registry is the interface accepted by generated RegisterXxxMCP functions.
+// This enables mocking in tests, distributed registries, and decorator patterns.
+type Registry interface {
+	// Register adds a tool to the registry.
+	Register(def ToolDefinition, handler HandlerFunc)
+}
 
 // ToolEntry holds a registered tool's definition and handler.
 type ToolEntry struct {
@@ -10,13 +18,15 @@ type ToolEntry struct {
 	Handler    HandlerFunc
 }
 
-// ToolRegistry manages registered MCP tools.
-// V1: Tools are registered here, then added to the MCP server.
-// V3: Macro-tools use Lookup to compose sub-tools.
+// ToolRegistry is the default in-memory implementation of Registry.
+// It manages registered MCP tools with thread-safe access.
 type ToolRegistry struct {
 	mu    sync.RWMutex
 	tools map[string]ToolEntry
 }
+
+// Verify ToolRegistry implements Registry at compile time.
+var _ Registry = (*ToolRegistry)(nil)
 
 // NewToolRegistry creates a new empty registry.
 func NewToolRegistry() *ToolRegistry {
@@ -36,7 +46,6 @@ func (r *ToolRegistry) Register(def ToolDefinition, handler HandlerFunc) {
 }
 
 // Lookup returns a tool's handler by name. Returns nil, false if not found.
-// V3: Used by macro-tools to compose sub-tool calls.
 func (r *ToolRegistry) Lookup(toolName string) (HandlerFunc, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -48,12 +57,22 @@ func (r *ToolRegistry) Lookup(toolName string) (HandlerFunc, bool) {
 }
 
 // Tools returns all registered tool definitions.
+// InputSchema fields are defensively copied to prevent callers from
+// mutating the registry's internal state.
 func (r *ToolRegistry) Tools() []ToolDefinition {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	defs := make([]ToolDefinition, 0, len(r.tools))
 	for _, entry := range r.tools {
-		defs = append(defs, entry.Definition)
+		def := entry.Definition
+		// Defensive copy of json.RawMessage to prevent data races
+		// from callers mutating the returned schema bytes.
+		if def.InputSchema != nil {
+			schemaCopy := make(json.RawMessage, len(def.InputSchema))
+			copy(schemaCopy, def.InputSchema)
+			def.InputSchema = schemaCopy
+		}
+		defs = append(defs, def)
 	}
 	return defs
 }

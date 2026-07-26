@@ -94,9 +94,9 @@ func TestGenerateFile_ContainsRegisterFunc(t *testing.T) {
 	if !strings.Contains(output, "RegisterPatientServiceMCP(") {
 		t.Error("expected RegisterPatientServiceMCP function in output")
 	}
-	// Must reference the runtime registry.
-	if !strings.Contains(output, "ToolRegistry") {
-		t.Error("expected ToolRegistry in RegisterPatientServiceMCP")
+	// Must reference the runtime registry interface.
+	if !strings.Contains(output, "Registry") {
+		t.Error("expected Registry interface in RegisterPatientServiceMCP")
 	}
 	// Must reference UnmarshalToolInput.
 	if !strings.Contains(output, "UnmarshalToolInput") {

@@ -5,5 +5,5 @@ import mcpruntime "github.com/protocgen/proto2mcp/pkg/mcpruntime"
 
 type SkippedServiceMCPHandler interface{}
 
-func RegisterSkippedServiceMCP(registry *mcpruntime.ToolRegistry, handler SkippedServiceMCPHandler, opts ...mcpruntime.Option) {
+func RegisterSkippedServiceMCP(registry mcpruntime.Registry, handler SkippedServiceMCPHandler, opts ...mcpruntime.Option) {
 }

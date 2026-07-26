@@ -107,11 +107,33 @@ func LintMessage(msg *protogen.Message, depth int) []Warning {
 			})
 		}
 
+		// Large enums are token-heavy and confuse LLMs.
+		if field.Enum != nil && len(field.Enum.Values) > 20 {
+			warnings = append(warnings, Warning{
+				Severity: WarnWarning,
+				Message:  fmt.Sprintf("Field '%s' has enum with %d values; large enums consume many tokens and may confuse LLMs", field.Desc.Name(), len(field.Enum.Values)),
+			})
+		}
+
 		if field.Message != nil {
 			if !strings.HasPrefix(string(field.Message.Desc.FullName()), "google.protobuf.") {
 				warnings = append(warnings, LintMessage(field.Message, depth+1)...)
 			}
 		}
+	}
+
+	// Count required fields. Excessive required fields make tools hard to use.
+	requiredCount := 0
+	for _, field := range msg.Fields {
+		if IsFieldRequired(field.Desc) {
+			requiredCount++
+		}
+	}
+	if requiredCount > 10 {
+		warnings = append(warnings, Warning{
+			Severity: WarnWarning,
+			Message:  fmt.Sprintf("Message has %d required fields; excessive required fields increase LLM error rates", requiredCount),
+		})
 	}
 
 	return warnings

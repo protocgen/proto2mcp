@@ -18,7 +18,7 @@ const AuditService_GetEventsDescription = "Get audit events in a time range"
 
 var AuditService_GetEventsSchema = []byte("{\"type\":\"object\",\"properties\":{\"start_time\":{\"type\":\"string\",\"format\":\"date-time\"},\"end_time\":{\"type\":\"string\",\"format\":\"date-time\"},\"page_size\":{\"type\":\"integer\"}}}")
 
-func RegisterAuditServiceMCP(registry *mcpruntime.ToolRegistry, handler AuditServiceMCPHandler, opts ...mcpruntime.Option) {
+func RegisterAuditServiceMCP(registry mcpruntime.Registry, handler AuditServiceMCPHandler, opts ...mcpruntime.Option) {
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{

@@ -18,7 +18,7 @@ const ServiceA_MethodADescription = "Method A"
 
 var ServiceA_MethodASchema = []byte("{\"type\":\"object\"}")
 
-func RegisterServiceAMCP(registry *mcpruntime.ToolRegistry, handler ServiceAMCPHandler, opts ...mcpruntime.Option) {
+func RegisterServiceAMCP(registry mcpruntime.Registry, handler ServiceAMCPHandler, opts ...mcpruntime.Option) {
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
@@ -47,7 +47,7 @@ const ServiceB_MethodBDescription = "Method B"
 
 var ServiceB_MethodBSchema = []byte("{\"type\":\"object\"}")
 
-func RegisterServiceBMCP(registry *mcpruntime.ToolRegistry, handler ServiceBMCPHandler, opts ...mcpruntime.Option) {
+func RegisterServiceBMCP(registry mcpruntime.Registry, handler ServiceBMCPHandler, opts ...mcpruntime.Option) {
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
