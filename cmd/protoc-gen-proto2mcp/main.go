@@ -44,6 +44,7 @@ func main() {
 				continue
 			}
 
+			var infos []emit.ServiceEmitInfo
 			for _, svcIR := range fileIR.Services {
 				// Find the matching protogen.Service for type resolution.
 				var protoSvc *protogen.Service
@@ -59,21 +60,26 @@ func main() {
 
 				// Build emit info with resolved Go types.
 				info := buildServiceEmitInfo(svcIR, protoSvc, protoFile)
+				infos = append(infos, info)
+			}
 
-				// Generate the code.
-				jFile := emit.GenerateFile(info)
+			if len(infos) == 0 {
+				continue
+			}
 
-				// Determine output filename: input.pb.mcp.go
-				outputName := strings.TrimSuffix(protoFile.GeneratedFilenamePrefix, ".pb") + ".pb.mcp.go"
-				// If the prefix doesn't end with .pb, just append.
-				if !strings.Contains(protoFile.GeneratedFilenamePrefix, ".pb") {
-					outputName = protoFile.GeneratedFilenamePrefix + "_mcp.pb.go"
-				}
+			// Generate the code.
+			jFile := emit.GenerateFile(infos)
 
-				g := gen.NewGeneratedFile(outputName, protoFile.GoImportPath)
-				if err := jFile.Render(g); err != nil {
-					return fmt.Errorf("writing %s: %w", outputName, err)
-				}
+			// Determine output filename: input.pb.mcp.go
+			outputName := strings.TrimSuffix(protoFile.GeneratedFilenamePrefix, ".pb") + ".pb.mcp.go"
+			// If the prefix doesn't end with .pb, just append.
+			if !strings.Contains(protoFile.GeneratedFilenamePrefix, ".pb") {
+				outputName = protoFile.GeneratedFilenamePrefix + "_mcp.pb.go"
+			}
+
+			g := gen.NewGeneratedFile(outputName, protoFile.GoImportPath)
+			if err := jFile.Render(g); err != nil {
+				return fmt.Errorf("writing %s: %w", outputName, err)
 			}
 		}
 		return nil

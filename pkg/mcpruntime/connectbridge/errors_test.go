@@ -206,3 +206,22 @@ func assertErrorResult(t *testing.T, result *mcpruntime.CallToolResult, expected
 		t.Fatalf("expected error %q, got %q", expectedError, ec.Error)
 	}
 }
+
+func TestMapConnectError_OutOfRange(t *testing.T) {
+	err := connect.NewError(connect.CodeOutOfRange, fmt.Errorf("out of range"))
+	result := MapConnectError(err)
+	assertErrorResult(t, result, "INTERNAL", "an internal error occurred while processing the request")
+}
+
+func TestAsConnectError_DeeplyWrapped(t *testing.T) {
+	original := connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("bad field"))
+	wrapped1 := fmt.Errorf("layer 1: %w", original)
+	wrapped2 := fmt.Errorf("layer 2: %w", wrapped1)
+	got, ok := asConnectError(wrapped2)
+	if !ok {
+		t.Fatal("expected ok=true for deeply wrapped connect.Error")
+	}
+	if got.Code() != connect.CodeInvalidArgument {
+		t.Fatalf("expected CodeInvalidArgument, got %v", got.Code())
+	}
+}

@@ -3,6 +3,8 @@ package extract
 import (
 	"encoding/json"
 	"testing"
+
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 func TestWarningLevelConstants(t *testing.T) {
@@ -143,4 +145,215 @@ func TestToolIRStruct(t *testing.T) {
 	if tool.MacroType != MacroTypeSequential {
 		t.Errorf("expected MacroTypeSequential, got %v", tool.MacroType)
 	}
+}
+
+func TestLintMethod(t *testing.T) {
+	fd := &descriptorpb.FileDescriptorProto{
+		Name:    strPtr("linter_test.proto"),
+		Package: strPtr("testpkg"),
+		Options: &descriptorpb.FileOptions{
+			GoPackage: strPtr("github.com/test/testpkg"),
+		},
+		MessageType: []*descriptorpb.DescriptorProto{
+			{
+				Name: strPtr("EmptyInput"),
+			},
+			{
+				Name: strPtr("LargeInput"),
+			},
+
+			{
+				Name: strPtr("DeepMessage1"),
+				Field: []*descriptorpb.FieldDescriptorProto{
+					{
+						Name:     strPtr("next"),
+						Number:   func(i int32) *int32 { return &i }(1),
+						Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+						Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
+						TypeName: strPtr(".testpkg.DeepMessage2"),
+					},
+				},
+			},
+			{
+				Name: strPtr("DeepMessage2"),
+				Field: []*descriptorpb.FieldDescriptorProto{
+					{
+						Name:     strPtr("next"),
+						Number:   func(i int32) *int32 { return &i }(1),
+						Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+						Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
+						TypeName: strPtr(".testpkg.DeepMessage3"),
+					},
+				},
+			},
+			{
+				Name: strPtr("DeepMessage3"),
+				Field: []*descriptorpb.FieldDescriptorProto{
+					{
+						Name:     strPtr("next"),
+						Number:   func(i int32) *int32 { return &i }(1),
+						Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+						Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
+						TypeName: strPtr(".testpkg.DeepMessage4"),
+					},
+				},
+			},
+			{
+				Name: strPtr("DeepMessage4"),
+				Field: []*descriptorpb.FieldDescriptorProto{
+					{
+						Name:     strPtr("next"),
+						Number:   func(i int32) *int32 { return &i }(1),
+						Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+						Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
+						TypeName: strPtr(".testpkg.DeepMessage5"),
+					},
+				},
+			},
+			{
+				Name: strPtr("DeepMessage5"),
+				Field: []*descriptorpb.FieldDescriptorProto{
+					{
+						Name:     strPtr("next"),
+						Number:   func(i int32) *int32 { return &i }(1),
+						Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+						Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
+						TypeName: strPtr(".testpkg.EmptyInput"),
+					},
+				},
+			},
+			{
+				Name: strPtr("NormalOutput"),
+			},
+		},
+		Service: []*descriptorpb.ServiceDescriptorProto{
+			{
+				Name: strPtr("TestService"),
+				Method: []*descriptorpb.MethodDescriptorProto{
+					{
+						Name:       strPtr("BidiStream"),
+						InputType:  strPtr(".testpkg.EmptyInput"),
+						OutputType: strPtr(".testpkg.EmptyInput"),
+						ClientStreaming: func(b bool) *bool { return &b }(true),
+						ServerStreaming: func(b bool) *bool { return &b }(true),
+					},
+					{
+						Name:       strPtr("ClientStream"),
+						InputType:  strPtr(".testpkg.EmptyInput"),
+						OutputType: strPtr(".testpkg.EmptyInput"),
+						ClientStreaming: func(b bool) *bool { return &b }(true),
+					},
+					{
+						Name:       strPtr("ServerStream"),
+						InputType:  strPtr(".testpkg.EmptyInput"),
+						OutputType: strPtr(".testpkg.EmptyInput"),
+						ServerStreaming: func(b bool) *bool { return &b }(true),
+					},
+					{
+						Name:       strPtr("NoDescription"),
+						InputType:  strPtr(".testpkg.EmptyInput"),
+						OutputType: strPtr(".testpkg.EmptyInput"),
+					},
+					{
+						Name:       strPtr("LargeSchema"),
+						InputType:  strPtr(".testpkg.LargeInput"),
+						OutputType: strPtr(".testpkg.EmptyInput"),
+					},
+
+					{
+						Name:       strPtr("DeeplyNested"),
+						InputType:  strPtr(".testpkg.DeepMessage1"),
+						OutputType: strPtr(".testpkg.EmptyInput"),
+					},
+				},
+			},
+		},
+	}
+
+	for i := 1; i <= 21; i++ {
+		fd.MessageType[1].Field = append(fd.MessageType[1].Field, &descriptorpb.FieldDescriptorProto{
+			Name:   strPtr(func(i int) string { return "f" + string(rune('a'+i)) }(i)),
+			Number: func(i int32) *int32 { return &i }(int32(i)),
+			Label:  labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+			Type:   typePtr(descriptorpb.FieldDescriptorProto_TYPE_STRING),
+		})
+	}
+
+	plugin := buildTestPlugin(t, fd)
+	file := plugin.FilesByPath["linter_test.proto"]
+	service := file.Services[0]
+
+	t.Run("BidiStream", func(t *testing.T) {
+		warns := LintMethod(service.Methods[0])
+		if len(warns) == 0 || warns[0].Message != "MCP does not support bidirectional streaming" {
+			t.Error("expected bidi stream warning")
+		}
+	})
+
+	t.Run("ClientStream", func(t *testing.T) {
+		warns := LintMethod(service.Methods[1])
+		if len(warns) == 0 || warns[0].Message != "MCP does not support client streaming" {
+			t.Error("expected client stream warning")
+		}
+	})
+
+	t.Run("ServerStream", func(t *testing.T) {
+		warns := LintMethod(service.Methods[2])
+		if len(warns) == 0 || warns[0].Message != "MCP does not support server streaming" {
+			t.Error("expected server stream warning")
+		}
+	})
+
+	t.Run("NoDescription", func(t *testing.T) {
+		warns := LintMethod(service.Methods[3])
+		found := false
+		for _, w := range warns {
+			if w.Message == "Method has no description; LLM will not understand its purpose" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("expected no description warning")
+		}
+	})
+	
+	t.Run("EmptyInputFields", func(t *testing.T) {
+		warns := LintMethod(service.Methods[3])
+		found := false
+		for _, w := range warns {
+			if w.Message == "Input message has no fields; tool has no parameters" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("expected empty input warning")
+		}
+	})
+
+	t.Run("LargeSchema", func(t *testing.T) {
+		warns := LintMethod(service.Methods[4])
+		found := false
+		for _, w := range warns {
+			if w.Message == "Input message has 21 fields; large schemas may confuse LLMs" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("expected large schema warning")
+		}
+	})
+
+
+	t.Run("DeeplyNested", func(t *testing.T) {
+		warns := LintMethod(service.Methods[5])
+		found := false
+		for _, w := range warns {
+			if w.Message == "Message nesting depth 5 exceeds recommended maximum of 4" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("expected nesting depth warning")
+		}
+	})
 }
