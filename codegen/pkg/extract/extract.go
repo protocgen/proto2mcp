@@ -27,6 +27,5 @@ func FromPlugin(plugin *protogen.Plugin) ([]FileIR, error) {
 // FromDescriptors extracts FileIR from proto file descriptors.
 // V3: Used by AI API Gateway for runtime extraction.
 func FromDescriptors(files []protoreflect.FileDescriptor) ([]FileIR, error) {
-	// TODO: Phase 2/V3 — implement runtime extraction
-	return nil, nil
+	return nil, fmt.Errorf("FromDescriptors is not yet implemented (V3 feature)")
 }

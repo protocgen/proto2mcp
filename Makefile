@@ -7,6 +7,7 @@
 
 .PHONY: build
 build: ## Build the protoc plugin binary
+	@mkdir -p bin
 	cd codegen && go build -o ../bin/protoc-gen-proto2mcp ./cmd/protoc-gen-proto2mcp
 
 .PHONY: install
