@@ -2,12 +2,55 @@ package extract
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
+
+// MCP tool name constraints per specification.
+const (
+	// MaxToolNameLength is the maximum allowed tool name length per MCP spec.
+	MaxToolNameLength = 64
+)
+
+// toolNamePattern matches valid MCP tool names: alphanumeric, underscores, hyphens.
+var toolNamePattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+// ValidateToolName checks a tool name against MCP spec constraints.
+// Returns warnings for any violations.
+func ValidateToolName(name string) []Warning {
+	var warnings []Warning
+
+	if name == "" {
+		warnings = append(warnings, Warning{
+			Severity: WarnError,
+			Method:   name,
+			Message:  "tool name is empty",
+		})
+		return warnings
+	}
+
+	if len(name) > MaxToolNameLength {
+		warnings = append(warnings, Warning{
+			Severity: WarnError,
+			Method:   name,
+			Message:  fmt.Sprintf("tool name %q exceeds MCP maximum of %d characters (got %d)", name, MaxToolNameLength, len(name)),
+		})
+	}
+
+	if !toolNamePattern.MatchString(name) {
+		warnings = append(warnings, Warning{
+			Severity: WarnError,
+			Method:   name,
+			Message:  fmt.Sprintf("tool name %q contains invalid characters; must match [a-zA-Z0-9_-]", name),
+		})
+	}
+
+	return warnings
+}
 
 // Extension field numbers for MCP annotations.
 // Source: proto/protocgen/mcp/v1/options.proto
@@ -129,6 +172,9 @@ func extractMethod(method *protogen.Method, svcName, svcPrefix string) *ToolIR {
 		desc = "[DEPRECATED] " + desc
 	}
 
+	// Validate tool name against MCP spec.
+	nameWarnings := ValidateToolName(toolName)
+
 	tool := &ToolIR{
 		Name:           toolName,
 		MethodName:     string(method.Desc.Name()),
@@ -136,6 +182,7 @@ func extractMethod(method *protogen.Method, svcName, svcPrefix string) *ToolIR {
 		InputTypeName:  string(method.Input.Desc.FullName()),
 		OutputTypeName: string(method.Output.Desc.FullName()),
 		IsDeprecated:   isDeprecated,
+		Warnings:       nameWarnings,
 	}
 
 	if mOpts != nil {
