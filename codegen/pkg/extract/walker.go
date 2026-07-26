@@ -100,8 +100,9 @@ func ExtractFile(file *protogen.File) (*FileIR, error) {
 
 		if svcOpts != nil {
 			svcIR.Options = ServiceOptions{
-				ToolNamePrefix: svcOpts.ToolNamePrefix,
-				Description:    svcOpts.Description,
+				ToolNamePrefix:  svcOpts.ToolNamePrefix,
+				Description:     svcOpts.Description,
+				GenerateConnect: svcOpts.GenerateConnect,
 			}
 		}
 
@@ -235,8 +236,9 @@ type methodOptions struct {
 }
 
 type serviceOptions struct {
-	ToolNamePrefix string
-	Description    string
+	ToolNamePrefix  string
+	Description     string
+	GenerateConnect bool
 }
 
 type fileOptions struct {
@@ -302,6 +304,8 @@ func readServiceOptions(svc *protogen.Service) *serviceOptions {
 					sOpts.ToolNamePrefix = subV.String()
 				case 2:
 					sOpts.Description = subV.String()
+				case 3:
+					sOpts.GenerateConnect = subV.Bool()
 				}
 				return true
 			})

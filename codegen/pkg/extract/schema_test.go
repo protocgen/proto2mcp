@@ -2,6 +2,7 @@ package extract
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -266,6 +267,41 @@ func TestMessageToSchema(t *testing.T) {
 		// Check additionalProperties: false
 		if schema["additionalProperties"] != false {
 			t.Error("expected additionalProperties: false on top-level schema")
+		}
+
+		// Check oneof fields: oneofStr and oneofInt should be present
+		oneofStr, ok := props["oneofStr"].(map[string]interface{})
+		if !ok {
+			t.Fatal("expected oneofStr in properties")
+		}
+		if oneofStr["type"] != "string" {
+			t.Errorf("expected oneofStr type=string, got %v", oneofStr["type"])
+		}
+
+		oneofInt, ok := props["oneofInt"].(map[string]interface{})
+		if !ok {
+			t.Fatal("expected oneofInt in properties")
+		}
+		if oneofInt["type"] != "integer" {
+			t.Errorf("expected oneofInt type=integer, got %v", oneofInt["type"])
+		}
+
+		// Oneof fields should have mutual exclusivity hint in description
+		oneofStrDesc, _ := oneofStr["description"].(string)
+		if !strings.Contains(oneofStrDesc, "mutually exclusive") {
+			t.Errorf("expected oneofStr description to contain mutual exclusivity hint, got %q", oneofStrDesc)
+		}
+		oneofIntDesc, _ := oneofInt["description"].(string)
+		if !strings.Contains(oneofIntDesc, "mutually exclusive") {
+			t.Errorf("expected oneofInt description to contain mutual exclusivity hint, got %q", oneofIntDesc)
+		}
+
+		// Oneof fields should NOT be in the required array
+		required, _ := schema["required"].([]interface{})
+		for _, r := range required {
+			if r == "oneofStr" || r == "oneofInt" {
+				t.Errorf("oneof field %q should not be in required array", r)
+			}
 		}
 	})
 
