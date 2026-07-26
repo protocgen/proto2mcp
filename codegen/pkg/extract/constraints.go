@@ -92,13 +92,15 @@ func ExtractConstraints(field protoreflect.FieldDescriptor) map[string]any {
 		}
 	}
 
-	// Bytes constraints
+	// Bytes constraints — byte lengths don't map to JSON string lengths
+	// (bytes serialize as base64), so we emit prose descriptions instead
+	// of minLength/maxLength schema keywords.
 	if r := rules.GetBytes(); r != nil {
 		if r.MinLen != nil {
-			result["minLength"] = *r.MinLen
+			descriptions = append(descriptions, fmt.Sprintf("Minimum %d bytes", *r.MinLen))
 		}
 		if r.MaxLen != nil {
-			result["maxLength"] = *r.MaxLen
+			descriptions = append(descriptions, fmt.Sprintf("Maximum %d bytes", *r.MaxLen))
 		}
 	}
 
@@ -126,7 +128,7 @@ func ExtractConstraints(field protoreflect.FieldDescriptor) map[string]any {
 	}
 
 	if len(descriptions) > 0 {
-		result["description"] = strings.Join(descriptions, "; ")
+		result["_constraint_notes"] = strings.Join(descriptions, "; ")
 	}
 
 	if len(result) == 0 {
@@ -187,7 +189,10 @@ func extractInt32Constraints(r *validatepb.Int32Rules, result map[string]any, de
 	}
 }
 
-// extractInt64Constraints reads Int64Rules and populates JSON Schema constraints.
+// extractInt64Constraints reads Int64Rules and populates constraint descriptions.
+// int64/uint64 values serialize as JSON strings (via protoKindToJSONType), so numeric
+// schema keywords (minimum, maximum, etc.) are unsuitable. We emit prose descriptions
+// that LLMs can read instead.
 func extractInt64Constraints(r *validatepb.Int64Rules, result map[string]any, descs *[]string) {
 	if r == nil {
 		return
@@ -243,7 +248,9 @@ func extractUint32Constraints(r *validatepb.UInt32Rules, result map[string]any, 
 	}
 }
 
-// extractUint64Constraints reads UInt64Rules and populates JSON Schema constraints.
+// extractUint64Constraints reads UInt64Rules and populates constraint descriptions.
+// uint64 values serialize as JSON strings (via protoKindToJSONType), so numeric
+// schema keywords are unsuitable. We emit prose descriptions instead.
 func extractUint64Constraints(r *validatepb.UInt64Rules, result map[string]any, descs *[]string) {
 	if r == nil {
 		return

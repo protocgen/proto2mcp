@@ -116,7 +116,17 @@ func LintMessage(msg *protogen.Message, depth int) []Warning {
 		}
 
 		if field.Message != nil {
-			if !strings.HasPrefix(string(field.Message.Desc.FullName()), "google.protobuf.") {
+			if field.Desc.IsMap() {
+				// Map fields have a synthetic map-entry message. Recurse into
+				// the map value type instead to avoid false warnings on key/value.
+				for _, mf := range field.Message.Fields {
+					if mf.Desc.Number() == 2 && mf.Message != nil {
+						if !strings.HasPrefix(string(mf.Message.Desc.FullName()), "google.protobuf.") {
+							warnings = append(warnings, LintMessage(mf.Message, depth+1)...)
+						}
+					}
+				}
+			} else if !strings.HasPrefix(string(field.Message.Desc.FullName()), "google.protobuf.") {
 				warnings = append(warnings, LintMessage(field.Message, depth+1)...)
 			}
 		}

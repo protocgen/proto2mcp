@@ -72,6 +72,7 @@ func messageToSchemaFields(msg *protogen.Message, depth int) []SchemaField {
 type schemaResult struct {
 	jsonType string
 	format   string
+	title    string // message/enum type name for LLM context
 	enum     []string
 	props    []SchemaField
 	addProps any
@@ -119,6 +120,7 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 		sf.Items = &SchemaField{
 			Type:                 r.jsonType,
 			Format:               r.format,
+			Title:                r.title,
 			Properties:           r.props,
 			AdditionalProperties: r.addProps,
 			Items:                r.items,
@@ -127,6 +129,7 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 	} else {
 		sf.Type = r.jsonType
 		sf.Format = r.format
+		sf.Title = r.title
 		sf.Properties = r.props
 		sf.AdditionalProperties = r.addProps
 		sf.Items = r.items
@@ -136,7 +139,20 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 	// Wire in buf.validate constraints and required flag.
 	constraints := ExtractConstraints(field.Desc)
 	if constraints != nil {
-		sf.Constraints = constraints
+		// Append constraint notes to the field description rather than
+		// storing them in a separate "description" key that would overwrite
+		// the proto comment-based description in the final JSON Schema.
+		if notes, ok := constraints["_constraint_notes"].(string); ok {
+			if sf.Description != "" {
+				sf.Description += "\n" + notes
+			} else {
+				sf.Description = notes
+			}
+			delete(constraints, "_constraint_notes")
+		}
+		if len(constraints) > 0 {
+			sf.Constraints = constraints
+		}
 	}
 	if IsFieldRequired(field.Desc) {
 		sf.Required = true
@@ -149,25 +165,20 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 // with additionalProperties describing the map value type.
 func schemaForMap(field *protogen.Field, depth int) schemaResult {
 	r := schemaResult{jsonType: "object"}
-	valDesc := field.Message.Desc.Fields().ByNumber(2)
-	if valDesc == nil {
-		return r
-	}
-	for _, f := range field.Message.Fields {
-		if f.Desc.Number() == valDesc.Number() {
-			vsf := protoFieldToSchemaField(f, depth+1)
-			r.addProps = &SchemaField{
-				Type:                 vsf.Type,
-				Format:               vsf.Format,
-				Title:                vsf.Title,
-				Description:          vsf.Description,
-				Properties:           vsf.Properties,
-				Items:                vsf.Items,
-				AdditionalProperties: vsf.AdditionalProperties,
-				Enum:                 vsf.Enum,
-				Constraints:          vsf.Constraints,
-			}
-			break
+	// Map value is always field number 2 in the synthetic map entry message.
+	if len(field.Message.Fields) >= 2 {
+		valField := field.Message.Fields[1] // index 1 = field number 2 (value)
+		vsf := protoFieldToSchemaField(valField, depth+1)
+		r.addProps = &SchemaField{
+			Type:                 vsf.Type,
+			Format:               vsf.Format,
+			Title:                vsf.Title,
+			Description:          vsf.Description,
+			Properties:           vsf.Properties,
+			Items:                vsf.Items,
+			AdditionalProperties: vsf.AdditionalProperties,
+			Enum:                 vsf.Enum,
+			Constraints:          vsf.Constraints,
 		}
 	}
 	return r
@@ -177,13 +188,14 @@ func schemaForMap(field *protogen.Field, depth int) schemaResult {
 // google.protobuf.Any, and user-defined nested messages.
 func schemaForMessage(field *protogen.Field, sf *SchemaField, depth int) schemaResult {
 	fullName := field.Message.Desc.FullName()
-	sf.Title = string(field.Message.Desc.Name())
-	// Note: additionalProperties is set via schemaResult.addProps, NOT directly
-	// on sf, to avoid leaking it onto array schemas for repeated message fields.
+	msgTitle := string(field.Message.Desc.Name())
+	// Note: title is carried through schemaResult.title so that repeated
+	// message fields place it on sf.Items, not on the array schema itself.
 
 	if string(fullName) == anyFullName {
 		return schemaResult{
 			jsonType: "object",
+			title:    msgTitle,
 			addProps: boolFalse,
 			descNote: "WARNING: google.protobuf.Any cannot be represented as JSON Schema",
 		}
@@ -194,6 +206,7 @@ func schemaForMessage(field *protogen.Field, sf *SchemaField, depth int) schemaR
 			return schemaResult{
 				jsonType: wk.Type,
 				format:   wk.Format,
+				title:    msgTitle,
 				props:    wk.Properties,
 				addProps: wk.AdditionalProperties,
 				items:    wk.Items,
@@ -202,7 +215,7 @@ func schemaForMessage(field *protogen.Field, sf *SchemaField, depth int) schemaR
 		}
 	}
 
-	r := schemaResult{jsonType: "object", addProps: boolFalse}
+	r := schemaResult{jsonType: "object", title: msgTitle, addProps: boolFalse}
 	if depth >= MaxRecursionDepth {
 		r.descNote = "...(truncated)..."
 	} else {
