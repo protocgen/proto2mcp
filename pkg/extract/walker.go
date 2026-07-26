@@ -33,6 +33,10 @@ func ValidateToolName(name string) []Warning {
 		return warnings
 	}
 
+	// Note: len(name) counts bytes, not runes. This is intentional and safe:
+	// the regex check below rejects any non-ASCII characters, so for all valid
+	// names bytes == runes. For invalid names, byte-counting is strictly
+	// conservative (overestimates length), which is the right direction.
 	if len(name) > MaxToolNameLength {
 		warnings = append(warnings, Warning{
 			Severity: WarnError,

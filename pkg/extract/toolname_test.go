@@ -86,6 +86,21 @@ func TestValidateToolName(t *testing.T) {
 			wantErr: true,
 			wantMsg: "exceeds MCP maximum",
 		},
+		{
+			// Regression: multibyte characters. 30 runes = 60 bytes (under 64).
+			// Rejected by regex (invalid chars), NOT by length check.
+			name:    "multibyte under byte limit",
+			input:   strings.Repeat("é", 30),
+			wantErr: true,
+			wantMsg: "invalid characters",
+		},
+		{
+			// Regression: multibyte at boundary. 40 runes = 80 bytes (over 64).
+			// Gets BOTH length and regex warnings.
+			name:    "multibyte over byte limit",
+			input:   strings.Repeat("ñ", 40),
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
