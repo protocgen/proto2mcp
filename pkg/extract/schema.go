@@ -32,9 +32,34 @@ func messageToSchemaFields(msg *protogen.Message, depth int) []SchemaField {
 		return nil
 	}
 
+	oneofFields := make(map[int][]string)
+	for _, field := range msg.Fields {
+		if field.Oneof != nil && !field.Oneof.Desc.IsSynthetic() {
+			idx := field.Oneof.Desc.Index()
+			oneofFields[idx] = append(oneofFields[idx], string(field.Desc.JSONName()))
+		}
+	}
+
 	var fields []SchemaField
 	for _, field := range msg.Fields {
-		fields = append(fields, protoFieldToSchemaField(field, depth))
+		sf := protoFieldToSchemaField(field, depth)
+
+		if field.Oneof != nil && !field.Oneof.Desc.IsSynthetic() {
+			idx := field.Oneof.Desc.Index()
+			var others []string
+			for _, name := range oneofFields[idx] {
+				if name != string(field.Desc.JSONName()) {
+					others = append(others, name)
+				}
+			}
+			if len(others) > 0 {
+				hint := " (mutually exclusive with: " + strings.Join(others, ", ") + ")"
+				sf.Description = strings.TrimSpace(sf.Description + hint)
+			}
+			sf.Required = false
+		}
+
+		fields = append(fields, sf)
 	}
 	return fields
 }

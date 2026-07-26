@@ -137,6 +137,10 @@ func ExtractConstraints(field protoreflect.FieldDescriptor) map[string]any {
 
 // IsFieldRequired checks if a field has buf.validate required=true.
 func IsFieldRequired(field protoreflect.FieldDescriptor) bool {
+	if field.Cardinality() == protoreflect.Required {
+		return true
+	}
+
 	opts := field.Options()
 	if opts == nil || !proto.HasExtension(opts, validatepb.E_Field) {
 		return false
