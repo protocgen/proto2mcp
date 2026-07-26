@@ -21,7 +21,8 @@ func isWellKnown(fullName protoreflect.FullName) bool {
 		"google.protobuf.ListValue",
 		"google.protobuf.FieldMask",
 		"google.protobuf.Empty",
-		"google.protobuf.Any":
+		"google.protobuf.Any",
+		"google.protobuf.NullValue":
 		return true
 	default:
 		return false
@@ -66,6 +67,8 @@ func wellKnownSchema(fullName protoreflect.FullName) (*SchemaField, bool) {
 		return &SchemaField{Type: "object"}, true
 	case "google.protobuf.Any":
 		return nil, false
+	case "google.protobuf.NullValue":
+		return &SchemaField{Type: "null", Description: "JSON null value"}, true
 	}
 	return nil, false
 }

@@ -48,7 +48,15 @@ func PatientServiceForwardToConnect(client PatientServiceServiceClient) PatientS
 	return &connectForwarderPatientService{client: client}
 }
 func (f *connectForwarderPatientService) GetPatient(ctx context.Context, req *v1.GetPatientRequest) (*v1.GetPatientResponse, error) {
-	resp, err := f.client.GetPatient(ctx, connect.NewRequest(req))
+	connectReq := connect.NewRequest(req)
+	if headers := mcpruntime.HeadersFromContext(ctx); headers != nil {
+		for k, vals := range headers {
+			for _, v := range vals {
+				connectReq.Header().Add(k, v)
+			}
+		}
+	}
+	resp, err := f.client.GetPatient(ctx, connectReq)
 	if err != nil {
 		return nil, err
 	}
