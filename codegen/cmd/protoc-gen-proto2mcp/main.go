@@ -89,9 +89,11 @@ func main() {
 // buildServiceEmitInfo resolves Go type references from protogen metadata.
 func buildServiceEmitInfo(svcIR extract.ServiceIR, protoSvc *protogen.Service, protoFile *protogen.File) emit.ServiceEmitInfo {
 	info := emit.ServiceEmitInfo{
-		Service:      svcIR,
-		GoPackage:    string(protoFile.GoPackageName),
-		GoImportPath: string(protoFile.GoImportPath),
+		Service:           svcIR,
+		GoPackage:         string(protoFile.GoPackageName),
+		GoImportPath:      string(protoFile.GoImportPath),
+		GenerateConnect:   svcIR.Options.GenerateConnect,
+		ConnectClientType: string(protoSvc.Desc.Name()) + "ServiceClient",
 	}
 
 	// Build a map from method name to protogen.Method for type resolution.

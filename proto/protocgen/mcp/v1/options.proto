@@ -59,6 +59,7 @@ message PromptTemplate {
 message ServiceMCPOptions {
   string tool_name_prefix = 1;
   string description = 2;
+  bool generate_connect = 3; // Generate ConnectRPC forwarding functions
 }
 
 message FileMCPOptions {

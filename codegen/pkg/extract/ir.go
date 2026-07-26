@@ -94,6 +94,8 @@ type ServiceOptions struct {
 	ToolNamePrefix string
 	// Description is a service-level description.
 	Description string
+	// GenerateConnect enables ConnectRPC forwarding code generation.
+	GenerateConnect bool
 }
 
 // Warning represents an LLM Linter warning emitted during extraction.

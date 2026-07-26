@@ -29,11 +29,14 @@ type ToolEmitInfo struct {
 
 // ServiceEmitInfo holds everything needed to emit code for a service.
 type ServiceEmitInfo struct {
-	Service        extract.ServiceIR
-	Tools          []ToolEmitInfo
-	GoPackage      string // Go package name for the output file
-	GoImportPath   string // Go import path for the output file
+	Service         extract.ServiceIR
+	Tools           []ToolEmitInfo
+	GoPackage       string // Go package name for the output file
+	GoImportPath    string // Go import path for the output file
 	GenerateConnect bool   // If true, generate ConnectRPC forwarding
+	// ConnectClientType is the name of the ConnectRPC client interface.
+	// If empty, defaults to ServiceName + "ServiceClient".
+	ConnectClientType string
 }
 
 // GenerateFile produces a jennifer File for the given service IRs.

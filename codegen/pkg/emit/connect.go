@@ -14,7 +14,10 @@ import (
 func generateConnectForwarder(f *jen.File, info ServiceEmitInfo) {
 	funcName := info.Service.Name + "ForwardToConnect"
 	handlerName := info.Service.Name + "MCPHandler"
-	clientTypeName := info.Service.Name + "ServiceClient"
+	clientTypeName := info.ConnectClientType
+	if clientTypeName == "" {
+		clientTypeName = info.Service.Name + "ServiceClient"
+	}
 	
 	// Assume Connect interface is in the same package as GoImportPath
 	clientInterface := jen.Qual(info.GoImportPath, clientTypeName)
