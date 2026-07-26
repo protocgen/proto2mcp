@@ -110,6 +110,7 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 			}
 		} else {
 			jsonType = "object"
+			addProps = boolPtr(false)
 			if depth >= MaxRecursionDepth {
 				if descBuilder.Len() > 0 {
 					descBuilder.WriteString("\n")
