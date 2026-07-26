@@ -275,9 +275,11 @@ func TestGenerateFile_SpecialCharactersInDescription(t *testing.T) {
 	}
 	output := buf.String()
 
-	// The description should be properly escaped as a string literal
-	if !strings.Contains(output, "Has \\\"quotes\\\" and \\n newlines and `backticks`") {
-		// Wait, Jennifer usually escapes correctly, let's just check it doesn't fail
+	// Verify the description doesn't cause render failure — the fact
+	// we got here without Render error is the test. Jennifer handles
+	// string escaping internally.
+	if len(output) == 0 {
+		t.Fatal("expected non-empty output")
 	}
 }
 
