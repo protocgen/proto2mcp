@@ -110,14 +110,21 @@ func UnmarshalToolInput(req ToolRequest, msg proto.Message) error {
 }
 
 // MarshalToolResult marshals a proto response message into an MCP CallToolResult.
+// Returns an empty JSON object if msg is nil.
 func MarshalToolResult(msg proto.Message) (*CallToolResult, error) {
+	if msg == nil {
+		return &CallToolResult{
+			Content: json.RawMessage(`{}`),
+			IsError: false,
+		}, nil
+	}
 	opts := protojson.MarshalOptions{
 		EmitUnpopulated: true,
 		UseProtoNames:   true,
 	}
 	b, err := opts.Marshal(msg)
 	if err != nil {
-		return nil, err
+		return InternalError("failed to serialize response"), nil
 	}
 	return &CallToolResult{
 		Content: json.RawMessage(b),

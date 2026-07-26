@@ -316,3 +316,133 @@ func TestToolRegistry_ConcurrentAccess(t *testing.T) {
 		t.Fatalf("expected 10 tools after concurrent registration, got %d", len(tools))
 	}
 }
+
+func TestWrapHandler_TenantExtraction(t *testing.T) {
+	// C1: Verify that tenantExtractor is actually invoked and context is populated.
+	var gotTenant string
+	cfg := NewConfig(WithTenantExtractor(func(ctx context.Context) (string, error) {
+		return "tenant-42", nil
+	}))
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		gotTenant = TenantFromContext(ctx)
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("test", handler)
+	result, err := wrapped(context.Background(), ToolRequest{ToolName: "test"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatal("expected non-error result")
+	}
+	if gotTenant != "tenant-42" {
+		t.Fatalf("TenantFromContext = %q, want %q", gotTenant, "tenant-42")
+	}
+}
+
+func TestWrapHandler_TenantExtractionError(t *testing.T) {
+	cfg := NewConfig(WithTenantExtractor(func(ctx context.Context) (string, error) {
+		return "", fmt.Errorf("auth failed")
+	}))
+
+	handlerCalled := false
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		handlerCalled = true
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("test", handler)
+	result, err := wrapped(context.Background(), ToolRequest{ToolName: "test"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result when tenant extraction fails")
+	}
+	if handlerCalled {
+		t.Fatal("handler should NOT be called when tenant extraction fails")
+	}
+}
+
+func TestWrapHandler_PanicRecovery(t *testing.T) {
+	// C2: Verify that panics in handlers are recovered and returned as InternalError.
+	cfg := NewConfig()
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		panic("something went terribly wrong")
+	}
+
+	wrapped := cfg.WrapHandler("test", handler)
+	result, err := wrapped(context.Background(), ToolRequest{ToolName: "test"})
+	if err != nil {
+		t.Fatalf("unexpected error (panic should be recovered): %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result from recovered panic")
+	}
+}
+
+func TestWrapHandler_PanicInMiddleware(t *testing.T) {
+	mw := ToolInterceptorFunc(func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+		panic("middleware panic")
+	})
+
+	cfg := NewConfig(WithMiddleware(mw))
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("test", handler)
+	result, err := wrapped(context.Background(), ToolRequest{ToolName: "test"})
+	if err != nil {
+		t.Fatalf("unexpected error (panic should be recovered): %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result from recovered middleware panic")
+	}
+}
+
+func TestWrapHandler_TenantWithMiddleware(t *testing.T) {
+	// Verify tenant is available inside middleware.
+	var tenantInMW string
+	mw := ToolInterceptorFunc(func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+		tenantInMW = TenantFromContext(ctx)
+		return next(ctx, req)
+	})
+
+	cfg := NewConfig(
+		WithTenantExtractor(func(ctx context.Context) (string, error) {
+			return "tenant-99", nil
+		}),
+		WithMiddleware(mw),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("test", handler)
+	_, err := wrapped(context.Background(), ToolRequest{ToolName: "test"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if tenantInMW != "tenant-99" {
+		t.Fatalf("tenant in middleware = %q, want %q", tenantInMW, "tenant-99")
+	}
+}
+
+func TestMarshalToolResult_NilMessage(t *testing.T) {
+	// M5: Verify nil message doesn't panic.
+	result, err := MarshalToolResult(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatal("nil message should return non-error result")
+	}
+	if string(result.Content) != `{}` {
+		t.Fatalf("expected empty JSON object, got %s", result.Content)
+	}
+}
+

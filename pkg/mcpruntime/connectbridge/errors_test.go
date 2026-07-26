@@ -70,6 +70,48 @@ func TestMapConnectError_ResourceExhausted(t *testing.T) {
 	assertErrorResult(t, result, "RESOURCE_EXHAUSTED", "rate limit exceeded, try again later")
 }
 
+func TestMapConnectError_Canceled(t *testing.T) {
+	err := connect.NewError(connect.CodeCanceled, fmt.Errorf("canceled"))
+	result := MapConnectError(err)
+	assertErrorResult(t, result, "CANCELED", "Request was canceled")
+}
+
+func TestMapConnectError_DeadlineExceeded(t *testing.T) {
+	err := connect.NewError(connect.CodeDeadlineExceeded, fmt.Errorf("timeout"))
+	result := MapConnectError(err)
+	assertErrorResult(t, result, "DEADLINE_EXCEEDED", "Request timed out")
+}
+
+func TestMapConnectError_Aborted(t *testing.T) {
+	err := connect.NewError(connect.CodeAborted, fmt.Errorf("aborted"))
+	result := MapConnectError(err)
+	assertErrorResult(t, result, "ABORTED", "Operation was aborted, please retry")
+}
+
+func TestMapConnectError_Unimplemented(t *testing.T) {
+	err := connect.NewError(connect.CodeUnimplemented, fmt.Errorf("unimplemented"))
+	result := MapConnectError(err)
+	assertErrorResult(t, result, "UNIMPLEMENTED", "This operation is not supported")
+}
+
+func TestMapConnectError_Unavailable(t *testing.T) {
+	err := connect.NewError(connect.CodeUnavailable, fmt.Errorf("unavailable"))
+	result := MapConnectError(err)
+	assertErrorResult(t, result, "UNAVAILABLE", "Service temporarily unavailable, please retry")
+}
+
+func TestMapConnectError_DataLoss(t *testing.T) {
+	err := connect.NewError(connect.CodeDataLoss, fmt.Errorf("data loss"))
+	result := MapConnectError(err)
+	assertErrorResult(t, result, "DATA_LOSS", "Data loss detected")
+}
+
+func TestMapConnectError_Unknown(t *testing.T) {
+	err := connect.NewError(connect.CodeUnknown, fmt.Errorf("unknown"))
+	result := MapConnectError(err)
+	assertErrorResult(t, result, "INTERNAL", "an internal error occurred while processing the request")
+}
+
 func TestAsConnectError_DirectError(t *testing.T) {
 	original := connect.NewError(connect.CodeNotFound, fmt.Errorf("not found"))
 	got, ok := asConnectError(original)

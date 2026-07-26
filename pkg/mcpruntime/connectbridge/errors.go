@@ -46,6 +46,20 @@ func MapConnectError(err error) *mcpruntime.CallToolResult {
 		return mcpruntime.NewErrorResultWithDetails("operation precondition not met", "FAILED_PRECONDITION", nil)
 	case connect.CodeResourceExhausted:
 		return mcpruntime.NewErrorResultWithDetails("rate limit exceeded, try again later", "RESOURCE_EXHAUSTED", nil)
+	case connect.CodeCanceled:
+		return mcpruntime.NewErrorResultWithDetails("Request was canceled", "CANCELED", nil)
+	case connect.CodeUnknown:
+		return mcpruntime.InternalError("an internal error occurred while processing the request")
+	case connect.CodeDeadlineExceeded:
+		return mcpruntime.NewErrorResultWithDetails("Request timed out", "DEADLINE_EXCEEDED", nil)
+	case connect.CodeAborted:
+		return mcpruntime.NewErrorResultWithDetails("Operation was aborted, please retry", "ABORTED", nil)
+	case connect.CodeUnimplemented:
+		return mcpruntime.NewErrorResultWithDetails("This operation is not supported", "UNIMPLEMENTED", nil)
+	case connect.CodeUnavailable:
+		return mcpruntime.NewErrorResultWithDetails("Service temporarily unavailable, please retry", "UNAVAILABLE", nil)
+	case connect.CodeDataLoss:
+		return mcpruntime.NewErrorResultWithDetails("Data loss detected", "DATA_LOSS", nil)
 	default:
 		return mcpruntime.InternalError("an internal error occurred while processing the request")
 	}
