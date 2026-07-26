@@ -59,7 +59,7 @@ func SanitizeErrorMessage(msg string) string {
 	// Cap length to prevent excessively long messages.
 	const maxLen = 200
 	if len(msg) > maxLen {
-		msg = msg[:maxLen] + "..."
+		msg = msg[:maxLen-3] + "..."
 	}
 
 	// Check for stack trace / panic keywords.
