@@ -18,7 +18,7 @@ const PatientService_GetPatientDescription = "Get a patient by ID"
 
 var PatientService_GetPatientSchema = []byte("{\"type\":\"object\",\"properties\":{\"patient_id\":{\"type\":\"string\",\"description\":\"The patient ID\",\"minLength\":1}}}")
 
-func RegisterPatientServiceMCP(registry *mcpruntime.ToolRegistry, handler PatientServiceMCPHandler, opts ...mcpruntime.Option) {
+func RegisterPatientServiceMCP(registry mcpruntime.Registry, handler PatientServiceMCPHandler, opts ...mcpruntime.Option) {
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{

@@ -30,7 +30,7 @@ const OrderService_CancelOrderDescription = "Cancel an existing order"
 
 var OrderService_CancelOrderSchema = []byte("{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"string\"},\"reason\":{\"type\":\"string\"}}}")
 
-func RegisterOrderServiceMCP(registry *mcpruntime.ToolRegistry, handler OrderServiceMCPHandler, opts ...mcpruntime.Option) {
+func RegisterOrderServiceMCP(registry mcpruntime.Registry, handler OrderServiceMCPHandler, opts ...mcpruntime.Option) {
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
