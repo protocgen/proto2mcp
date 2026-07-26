@@ -29,6 +29,12 @@ func WithTenant(ctx context.Context, tenantID string) context.Context {
 // WithHeaders returns a new context carrying HTTP headers to propagate
 // to downstream ConnectRPC calls. Typically used in middleware to forward
 // authorization tokens, trace IDs, or other request metadata.
+//
+// SECURITY: Only include headers you explicitly intend to propagate.
+// Do NOT pass raw incoming request headers — filter to an allowlist
+// first (e.g., Authorization, X-Request-ID, traceparent). The generated
+// connect forwarder blindly copies all headers from context to the
+// outgoing ConnectRPC request.
 func WithHeaders(ctx context.Context, headers http.Header) context.Context {
 	return context.WithValue(ctx, headersKey, headers)
 }

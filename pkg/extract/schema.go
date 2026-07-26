@@ -159,11 +159,13 @@ func schemaForMap(field *protogen.Field, depth int) schemaResult {
 			r.addProps = &SchemaField{
 				Type:                 vsf.Type,
 				Format:               vsf.Format,
+				Title:                vsf.Title,
 				Description:          vsf.Description,
 				Properties:           vsf.Properties,
 				Items:                vsf.Items,
 				AdditionalProperties: vsf.AdditionalProperties,
 				Enum:                 vsf.Enum,
+				Constraints:          vsf.Constraints,
 			}
 			break
 		}
@@ -176,11 +178,13 @@ func schemaForMap(field *protogen.Field, depth int) schemaResult {
 func schemaForMessage(field *protogen.Field, sf *SchemaField, depth int) schemaResult {
 	fullName := field.Message.Desc.FullName()
 	sf.Title = string(field.Message.Desc.Name())
-	sf.AdditionalProperties = boolFalse
+	// Note: additionalProperties is set via schemaResult.addProps, NOT directly
+	// on sf, to avoid leaking it onto array schemas for repeated message fields.
 
 	if string(fullName) == anyFullName {
 		return schemaResult{
 			jsonType: "object",
+			addProps: boolFalse,
 			descNote: "WARNING: google.protobuf.Any cannot be represented as JSON Schema",
 		}
 	}
@@ -208,7 +212,13 @@ func schemaForMessage(field *protogen.Field, sf *SchemaField, depth int) schemaR
 }
 
 // schemaForEnum handles proto enum fields by extracting all enum value names.
+// Special-cases google.protobuf.NullValue to map to JSON null type.
 func schemaForEnum(field *protogen.Field) schemaResult {
+	// google.protobuf.NullValue is a well-known enum that maps to JSON null.
+	if field.Enum.Desc.FullName() == "google.protobuf.NullValue" {
+		return schemaResult{jsonType: "null", descNote: "JSON null value"}
+	}
+
 	r := schemaResult{jsonType: "string"}
 	for _, val := range field.Enum.Values {
 		r.enum = append(r.enum, string(val.Desc.Name()))
