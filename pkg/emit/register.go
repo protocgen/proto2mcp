@@ -30,8 +30,10 @@ func generateRegisterFunc(f *jen.File, info ServiceEmitInfo) {
 		jen.Id("handler").Id(handlerName),
 		jen.Id("opts").Op("...").Qual(runtimePkg, "Option"),
 	).BlockFunc(func(g *jen.Group) {
-		g.Id("cfg").Op(":=").Qual(runtimePkg, "NewConfig").Call(jen.Id("opts").Op("..."))
-		g.Line()
+		if len(info.Tools) > 0 {
+			g.Id("cfg").Op(":=").Qual(runtimePkg, "NewConfig").Call(jen.Id("opts").Op("..."))
+			g.Line()
+		}
 		for _, t := range info.Tools {
 			generateRegisterCall(g, t)
 		}

@@ -1,124 +1,135 @@
 # proto2mcp
 
-> **Turn your gRPC fleet into secure, tenant-aware LLM tools in under two minutes.**
+> Generate type-safe MCP (Model Context Protocol) servers from Protobuf service definitions.
 
-![Status Badge](https://img.shields.io/badge/status-experimental-orange) <!-- placeholder -->
+## Why?
 
-`proto2mcp` is a `protoc`/`buf` plugin that generates Model Context Protocol (MCP) servers directly from your Protobuf service definitions. It bridges the gap between your existing backend microservices (often built with gRPC/Connect) and LLM-powered agents.
+Large Language Models (LLMs) are incredibly capable, but integrating them safely and reliably into existing infrastructure requires robust tooling. The Model Context Protocol (MCP) provides a standardized way for LLMs to invoke tools, but writing and maintaining the schemas, error handling, and routing for these tools manually is repetitive and error-prone.
 
-## The "Before/After"
+Meanwhile, your existing backend systems likely already have well-defined APIs using Protocol Buffers and gRPC/ConnectRPC. These definitions contain exactly the structural information that an LLM needs to use your tools safely, including input schemas, descriptions, and validation rules.
 
-**Before `proto2mcp`**: Manual MCP tool registration (verbose, error-prone)
-```go
-// 50+ lines of manual schema definition, validation, and mapping
-mcpServer.RegisterTool("get_user", "Get user by ID", json.RawMessage(`{
-  "type": "object",
-  "properties": {
-    "id": { "type": "string" }
-  },
-  "required": ["id"]
-}`), func(ctx context.Context, args json.RawMessage) (any, error) {
-    // manual decoding and validation
-    // manual client call
-    // manual encoding
-})
+`proto2mcp` bridges this gap. By adding a few lightweight annotations to your `.proto` files, one `protoc` command generates a fully-typed, ready-to-run MCP server. It handles JSON Schema generation, tool registration, middleware, metrics, and error mapping automatically, letting you focus on the business logic instead of the boilerplate.
+
+## Quick Start (2 minutes)
+
+### 1. Annotate your proto
+```protobuf
+import "protocgen/mcp/v1/options.proto";
+
+service PatientService {
+  // Get a patient by their unique identifier.
+  rpc GetPatient(GetPatientRequest) returns (GetPatientResponse) {
+    option (protocgen.mcp.v1.method) = {
+      description: "Look up a patient record by ID"
+    };
+  }
+}
 ```
 
-**After `proto2mcp`**: Zero boilerplate
-```go
-// Just 3 lines after `buf generate`
-s := mcp.NewServer(&mcp.Implementation{Name: "my-mcp", Version: "1.0.0"}, nil)
-mcpgen.RegisterUserServiceMCP(s, userClient)
-_ = s.Run(ctx, mcp.NewStdioTransport())
-```
-
-## Quick Start
-
-1. Add the plugin to your `buf.gen.yaml`:
-
-```yaml
-version: v2
-plugins:
-  - plugin: go
-    out: gen/go
-    opt: paths=source_relative
-  - plugin: buf.build/protocgen/proto2mcp
-    out: gen/go
-    opt: paths=source_relative
-```
-
-2. Run generation:
+### 2. Generate
 ```bash
 buf generate
 ```
 
-3. Register in your Go code:
+### 3. Use
 ```go
-package main
-
-import (
-	"context"
-	"log"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/protocgen/proto2mcp/pkg/mcpruntime"
-	myappv1 "github.com/myorg/myrepo/gen/go/myapp/v1"
-)
-
-func main() {
-	// 1. Initialize your existing gRPC/Connect client
-	client := myappv1.NewUserServiceClient(...)
-
-	// 2. Create an MCP server
-	s := mcp.NewServer(&mcp.Implementation{
-		Name:    "User API",
-		Version: "1.0.0",
-	}, nil)
-
-	// 3. Register the generated tools (with optional middleware)
-	myappv1.ForwardUserServiceToConnect(s, client,
-		mcpruntime.WithMiddleware(myAuthMiddleware),
-	)
-
-	// 4. Serve via stdio
-	if err := s.Run(context.Background(), mcp.NewStdioTransport()); err != nil {
-		log.Fatalf("Server error: %v", err)
-	}
-}
+registry := mcpruntime.NewToolRegistry()
+RegisterPatientServiceMCP(registry, myHandler)
 ```
 
-## Feature Highlights
+## Features
 
-* **Zero-config**: Automatically infers tool schemas from Protobuf messages.
-* **ConnectRPC forwarding**: Generates lightweight proxy code to forward MCP requests to your gRPC/Connect endpoints.
-* **Multitenancy**: Transparently injects context/tenant headers (via interceptors).
-* **`buf.validate` integration**: Propagates validation constraints (`minLength`, `pattern`, etc.) to LLM tool definitions, giving the model hints to prevent hallucinations.
-* **LLM Linter**: Emits warnings at compile time if your API design is "LLM-hostile" (e.g., using `google.protobuf.Any`, streaming, or undocumented fields).
+- **Type-safe**: Generated handler interfaces match your proto definitions exactly.
+- **Zero boilerplate**: Registration, schema generation, error mapping — all generated for you.
+- **`buf.validate` → JSON Schema**: Validation constraints are automatically surfaced to LLMs to prevent bad inputs.
+- **Well-known types**: Timestamp, Duration, and wrappers are mapped correctly to JSON schema types.
+- **LLM Linter**: Warns you at generation time about patterns that confuse LLMs (like streaming, `Any` types, or overly complex schemas).
+- **ConnectRPC bridge**: Optional forwarding to directly connect MCP calls to existing ConnectRPC backends without rewriting handlers.
+- **Middleware**: Intercept requests with composable middleware for Auth, logging, and tenant isolation.
+- **OTel metrics**: Built-in OpenTelemetry metrics (`mcp_tool_calls_total` and `mcp_tool_call_duration_seconds`).
 
 ## Architecture
 
-`proto2mcp` uses a two-phase compilation architecture:
+```text
+.proto files
+    │
+    ▼
+protoc-gen-proto2mcp (extract → emit)
+    │
+    ▼
+service.pb.mcp.go
+    ├── ServiceMCPHandler interface
+    ├── RegisterServiceMCP()
+    └── ServiceForwardToConnect() (opt-in)
+```
 
-1. **Phase 1: Extract** (`pkg/extract`) - Converts Protobuf descriptors into a normalized Intermediate Representation (IR). This phase is isolated and reusable.
-2. **Phase 2: Emit** (`internal/emit`) - Generates the target code (Go) from the IR. 
+## Installation
 
-This separation allows the `extract` package to be used independently by AI API Gateways for dynamic runtime tool extraction (V3).
+Install the protoc plugin:
 
-## Roadmap
+```bash
+go install github.com/protocgen/proto2mcp/cmd/protoc-gen-proto2mcp@latest
+```
 
-| Phase | Features | Status |
-| :--- | :--- | :--- |
-| **V1** | Go Code Generation, ConnectRPC integration, LLM Linter | 🚧 In Progress |
-| **V2** | Typescript Generator, Python Generator, MCP Resources | 📅 Planned |
-| **V3** | API Gateway integration, Dynamic runtime extraction | 📅 Planned |
+And add the runtime dependency to your Go module:
+
+```bash
+go get github.com/protocgen/proto2mcp/pkg/mcpruntime
+```
+
+## Configuration (proto annotations)
+
+Use the `protocgen.mcp.v1` options to customize how tools are generated.
+
+- **Method-level (`method`)**: Override tool name, description, skip generation, or mark as read-only.
+- **Service-level (`service`)**: Add tool name prefixes or service-wide descriptions.
+- **File-level (`file`)**: Skip entire files or define MCP Prompt orchestrations.
+
+## Middleware
+
+You can wrap tools with middleware at registration time. Middleware can inspect the request, modify context, or handle errors globally.
+
+```go
+// loggingInterceptor implements mcpruntime.ToolInterceptor.
+type loggingInterceptor struct{}
+
+func (l *loggingInterceptor) HandleToolCall(ctx context.Context, req mcpruntime.ToolRequest, next mcpruntime.HandlerFunc) (*mcpruntime.CallToolResult, error) {
+    log.Printf("Calling tool %s", req.ToolName)
+    return next(ctx, req)
+}
+
+RegisterPatientServiceMCP(registry, handler, mcpruntime.WithMiddleware(&loggingInterceptor{}))
+```
+
+## ConnectRPC Integration
+
+If you already have a running ConnectRPC backend, `proto2mcp` can generate a forwarder that skips the handler implementation entirely, bridging the MCP request directly to a Connect client. This is completely opt-in and lets you expose existing internal APIs to LLMs without rewriting them.
+
+## LLM Linter
+
+The plugin includes an LLM Linter that analyzes your Protobuf definitions. It will emit warnings if you use patterns that LLMs typically struggle with, such as:
+- Bi-directional or client streaming
+- `google.protobuf.Any` fields (LLMs can't dynamically construct these)
+- Extremely large, deeply nested request messages.
+
+## Metrics
+
+The `mcpruntime` package provides built-in support for OpenTelemetry metrics. You can track tool usage, errors, and latencies.
+
+```go
+metrics, err := mcpruntime.NewMetrics(otel.Meter("mcp"))
+// Then pass it via options during registration
+RegisterPatientServiceMCP(registry, handler, mcpruntime.WithMetrics(metrics))
+```
+
+## API Reference
+
+See the [godoc](https://pkg.go.dev/github.com/protocgen/proto2mcp) for full package documentation.
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! Please open an issue or submit a pull request.
 
 ## License
 
-Apache 2.0. See [LICENSE](LICENSE) for details.
-
----
-Part of the [protocgen](https://github.com/protocgen) organization. Sister project to [proto2type](https://github.com/protocgen/proto2type).
+MIT
