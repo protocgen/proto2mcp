@@ -1,7 +1,10 @@
 package extract
 
 import (
+	"strings"
 	"testing"
+
+	validatepb "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -57,3 +60,74 @@ func TestIsFieldRequired_Proto2Required(t *testing.T) {
 		t.Error("expected IsFieldRequired to return true for proto2 required field")
 	}
 }
+
+func TestExtractConstraints_CELRules(t *testing.T) {
+	opts := &descriptorpb.FieldOptions{}
+	rules := &validatepb.FieldRules{
+		CelExpression: []string{"this > 0"},
+		Cel: []*validatepb.Rule{
+			{
+				Id:         proto.String("with_message"),
+				Expression: proto.String("this < 100"),
+				Message:    proto.String("value must be less than 100"),
+			},
+			{
+				// Rule without message — should fall back to "CEL validation: <expr>"
+				Id:         proto.String("no_message"),
+				Expression: proto.String("this != 42"),
+			},
+		},
+	}
+	proto.SetExtension(opts, validatepb.E_Field, rules)
+
+	fd := &descriptorpb.FileDescriptorProto{
+		Name:   proto.String("test.proto"),
+		Syntax: proto.String("proto3"),
+		MessageType: []*descriptorpb.DescriptorProto{
+			{
+				Name: proto.String("TestMessage"),
+				Field: []*descriptorpb.FieldDescriptorProto{
+					{
+						Name:    proto.String("cel_field"),
+						Number:  proto.Int32(1),
+						Label:   descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+						Type:    descriptorpb.FieldDescriptorProto_TYPE_INT32.Enum(),
+						Options: opts,
+					},
+				},
+			},
+		},
+	}
+
+	fileDesc, err := protodesc.NewFile(fd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msgDesc := fileDesc.Messages().Get(0)
+	fieldDesc := msgDesc.Fields().Get(0)
+
+	constraints := ExtractConstraints(fieldDesc)
+	if constraints == nil {
+		t.Fatal("expected non-nil constraints")
+	}
+
+	notes, ok := constraints["_constraint_notes"].(string)
+	if !ok {
+		t.Fatal("expected _constraint_notes to be a string")
+	}
+
+	// CelExpression (raw string)
+	if !strings.Contains(notes, "CEL validation: this > 0") {
+		t.Errorf("expected notes to contain raw CEL expression, got %q", notes)
+	}
+	// Cel Rule with message
+	if !strings.Contains(notes, "Validation rule: value must be less than 100 (CEL: this < 100)") {
+		t.Errorf("expected notes to contain CEL rule with message, got %q", notes)
+	}
+	// Cel Rule without message — falls back to "CEL validation: <expr>"
+	if !strings.Contains(notes, "CEL validation: this != 42") {
+		t.Errorf("expected notes to contain CEL rule without message as fallback, got %q", notes)
+	}
+}
+

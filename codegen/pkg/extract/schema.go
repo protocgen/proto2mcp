@@ -245,6 +245,8 @@ func schemaForScalar(kind protoreflect.Kind) schemaResult {
 	r := schemaResult{jsonType: jsonType, format: format}
 	if format == "int64" || format == "uint64" {
 		r.descNote = "(serialized as string for 64-bit precision)"
+	} else if kind == protoreflect.BytesKind {
+		r.descNote = "(binary data serialized as base64-encoded string)"
 	}
 	return r
 }
