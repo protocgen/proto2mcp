@@ -24,3 +24,12 @@ Thumbs.db
 bin/
 gen/
 vendor/
+
+# Go build/module cache
+.gocache/
+.gopath/
+.modcache/
+
+# Coverage
+coverage.txt
+*.coverprofile

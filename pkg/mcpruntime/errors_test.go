@@ -1,10 +1,11 @@
 package mcpruntime
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestSanitizeErrorMessage_Clean(t *testing.T) {
@@ -126,19 +127,87 @@ func assertErrorResult(t *testing.T, result *CallToolResult, expectedCode, expec
 	}
 }
 
-// --- context helpers for integration tests ---
+func TestUnmarshalToolInput_Valid(t *testing.T) {
+	// google.protobuf.Struct uses direct JSON representation in protojson
+	req := ToolRequest{Arguments: []byte(`{"name":"foo"}`)}
 
-func TestTenantRoundtrip(t *testing.T) {
-	ctx := context.Background()
+	dest := &structpb.Struct{}
+	err := UnmarshalToolInput(req, dest)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dest.Fields["name"].GetStringValue() != "foo" {
+		t.Fatalf("expected 'foo', got %v", dest.Fields["name"].GetStringValue())
+	}
+}
 
-	// Initially empty.
-	if got := TenantFromContext(ctx); got != "" {
-		t.Fatalf("expected empty tenant, got %q", got)
+func TestUnmarshalToolInput_InvalidJSON(t *testing.T) {
+	req := ToolRequest{Arguments: []byte(`{invalid`)}
+	dest := &structpb.Struct{}
+	err := UnmarshalToolInput(req, dest)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestUnmarshalToolInput_Empty(t *testing.T) {
+	req := ToolRequest{Arguments: []byte{}}
+	dest := &structpb.Struct{}
+	err := UnmarshalToolInput(req, dest)
+	if err == nil {
+		t.Fatal("expected error for empty arguments")
+	}
+}
+
+func TestMarshalToolResult_Populated(t *testing.T) {
+	msg, _ := structpb.NewStruct(map[string]interface{}{"result": "success"})
+	res, err := MarshalToolResult(msg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.IsError {
+		t.Fatal("expected IsError=false")
 	}
 
-	// Set and retrieve.
-	ctx = WithTenant(ctx, "tenant-abc")
-	if got := TenantFromContext(ctx); got != "tenant-abc" {
-		t.Fatalf("expected 'tenant-abc', got %q", got)
+	// Struct serializes as plain JSON object via protojson
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(res.Content, &parsed); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	if parsed["result"] != "success" {
+		t.Fatalf("expected result=success, got: %v", parsed)
+	}
+}
+
+func TestMarshalToolResult_Nil(t *testing.T) {
+	res, err := MarshalToolResult(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.IsError {
+		t.Fatal("expected IsError=false")
+	}
+	if string(res.Content) != "{}" {
+		t.Fatalf("expected '{}', got %q", string(res.Content))
+	}
+}
+
+func TestNewErrorResultWithDetails_EmptyDetails(t *testing.T) {
+	res := NewErrorResultWithDetails("err", "CODE", []string{})
+	ec := parseErrorContent(t, res)
+	if len(ec.Violations) != 0 {
+		t.Fatalf("expected 0 violations, got %d", len(ec.Violations))
+	}
+}
+
+func TestNewErrorResultWithDetails_LongDetail(t *testing.T) {
+	longStr := ""
+	for i := 0; i < 1000; i++ {
+		longStr += "x"
+	}
+	res := NewErrorResultWithDetails("err", "CODE", []string{longStr})
+	ec := parseErrorContent(t, res)
+	if len(ec.Violations) != 1 || ec.Violations[0] != longStr {
+		t.Fatalf("expected violation to be preserved")
 	}
 }

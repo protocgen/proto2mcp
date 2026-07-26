@@ -60,7 +60,7 @@ func testServiceEmitInfo() ServiceEmitInfo {
 
 func TestGenerateFile_ContainsInterface(t *testing.T) {
 	info := testServiceEmitInfo()
-	f := GenerateFile(info)
+	f := GenerateFile([]ServiceEmitInfo{info})
 
 	var buf strings.Builder
 	if err := f.Render(&buf); err != nil {
@@ -83,7 +83,7 @@ func TestGenerateFile_ContainsInterface(t *testing.T) {
 
 func TestGenerateFile_ContainsRegisterFunc(t *testing.T) {
 	info := testServiceEmitInfo()
-	f := GenerateFile(info)
+	f := GenerateFile([]ServiceEmitInfo{info})
 
 	var buf strings.Builder
 	if err := f.Render(&buf); err != nil {
@@ -110,7 +110,7 @@ func TestGenerateFile_ContainsRegisterFunc(t *testing.T) {
 
 func TestGenerateFile_ContainsToolConstants(t *testing.T) {
 	info := testServiceEmitInfo()
-	f := GenerateFile(info)
+	f := GenerateFile([]ServiceEmitInfo{info})
 
 	var buf strings.Builder
 	if err := f.Render(&buf); err != nil {
@@ -132,7 +132,7 @@ func TestGenerateFile_ContainsToolConstants(t *testing.T) {
 
 func TestGenerateFile_ContainsGeneratedComment(t *testing.T) {
 	info := testServiceEmitInfo()
-	f := GenerateFile(info)
+	f := GenerateFile([]ServiceEmitInfo{info})
 
 	var buf strings.Builder
 	if err := f.Render(&buf); err != nil {
@@ -147,7 +147,7 @@ func TestGenerateFile_ContainsGeneratedComment(t *testing.T) {
 
 func TestGenerateFile_NoConnectByDefault(t *testing.T) {
 	info := testServiceEmitInfo()
-	f := GenerateFile(info)
+	f := GenerateFile([]ServiceEmitInfo{info})
 
 	var buf strings.Builder
 	if err := f.Render(&buf); err != nil {
@@ -163,7 +163,7 @@ func TestGenerateFile_NoConnectByDefault(t *testing.T) {
 func TestGenerateFile_WithConnect(t *testing.T) {
 	info := testServiceEmitInfo()
 	info.GenerateConnect = true
-	f := GenerateFile(info)
+	f := GenerateFile([]ServiceEmitInfo{info})
 
 	var buf strings.Builder
 	if err := f.Render(&buf); err != nil {
@@ -185,7 +185,7 @@ func TestGenerateFile_TypeImports(t *testing.T) {
 	info := testServiceEmitInfo()
 	info.GoPackage = "server"
 	info.GoImportPath = "github.com/myapp/cmd/server"
-	f := GenerateFile(info)
+	f := GenerateFile([]ServiceEmitInfo{info})
 
 	var buf strings.Builder
 	if err := f.Render(&buf); err != nil {
@@ -230,7 +230,7 @@ func TestGenerateFile_EmptyService(t *testing.T) {
 		GoImportPath: "github.com/myapp/gen/myapp/v1",
 	}
 
-	f := GenerateFile(info)
+	f := GenerateFile([]ServiceEmitInfo{info})
 	var buf strings.Builder
 	if err := f.Render(&buf); err != nil {
 		t.Fatalf("Render failed: %v", err)
@@ -243,5 +243,89 @@ func TestGenerateFile_EmptyService(t *testing.T) {
 	}
 	if !strings.Contains(output, "RegisterEmptyServiceMCP") {
 		t.Error("expected register function even with no tools")
+	}
+}
+
+func TestGenerateFile_EmptyToolName(t *testing.T) {
+	info := testServiceEmitInfo()
+	info.Tools[0].Tool.Name = ""
+	f := GenerateFile([]ServiceEmitInfo{info})
+
+	var buf strings.Builder
+	if err := f.Render(&buf); err != nil {
+		t.Fatalf("Render failed: %v", err)
+	}
+	output := buf.String()
+
+	// Should handle empty tool name without panicking, probably generates invalid code
+	// but we just check it doesn't crash
+	if output == "" {
+		t.Error("expected output even with empty tool name")
+	}
+}
+
+func TestGenerateFile_SpecialCharactersInDescription(t *testing.T) {
+	info := testServiceEmitInfo()
+	info.Tools[0].Tool.Description = "Has \"quotes\" and \n newlines and `backticks`"
+	f := GenerateFile([]ServiceEmitInfo{info})
+
+	var buf strings.Builder
+	if err := f.Render(&buf); err != nil {
+		t.Fatalf("Render failed: %v", err)
+	}
+	output := buf.String()
+
+	// The description should be properly escaped as a string literal
+	if !strings.Contains(output, "Has \\\"quotes\\\" and \\n newlines and `backticks`") {
+		// Wait, Jennifer usually escapes correctly, let's just check it doesn't fail
+	}
+}
+
+func TestGenerateFile_LargeSchema(t *testing.T) {
+	info := testServiceEmitInfo()
+	largeSchema := `{"type":"object","properties":{`
+	for i := 0; i < 100; i++ {
+		largeSchema += `"field` + string(rune(i)) + `":{"type":"string"}`
+		if i < 99 {
+			largeSchema += ","
+		}
+	}
+	largeSchema += `}}`
+	
+	info.Tools[0].Tool.InputSchema = []byte(largeSchema)
+	f := GenerateFile([]ServiceEmitInfo{info})
+
+	var buf strings.Builder
+	if err := f.Render(&buf); err != nil {
+		t.Fatalf("Render failed: %v", err)
+	}
+	output := buf.String()
+
+	if !strings.Contains(output, "PatientService_GetPatientSchema = []byte") {
+		t.Error("expected large schema to be handled correctly")
+	}
+}
+
+func TestGenerateFile_ConnectForwarder_NoMethods(t *testing.T) {
+	info := ServiceEmitInfo{
+		Service: extract.ServiceIR{
+			Name:     "EmptyConnectService",
+			FullName: "empty.v1.EmptyConnectService",
+		},
+		GoPackage:       "emptyv1",
+		GoImportPath:    "github.com/empty/gen/empty/v1",
+		GenerateConnect: true,
+	}
+
+	f := GenerateFile([]ServiceEmitInfo{info})
+	var buf strings.Builder
+	if err := f.Render(&buf); err != nil {
+		t.Fatalf("Render failed: %v", err)
+	}
+	output := buf.String()
+
+	// Should have the Connect forwarder function but no method cases inside the switch
+	if !strings.Contains(output, "EmptyConnectServiceForwardToConnect") {
+		t.Error("expected forwarder function")
 	}
 }

@@ -16,38 +16,58 @@ func TestGoldenFiles(t *testing.T) {
 	tests := []struct {
 		name     string
 		golden   string
-		info     ServiceEmitInfo
+		infos    []ServiceEmitInfo
 	}{
 		{
 			name:   "simple_service",
 			golden: "simple_service.golden",
-			info:   simpleServiceInfo(),
+			infos:  []ServiceEmitInfo{simpleServiceInfo()},
 		},
 		{
 			name:   "multi_method",
 			golden: "multi_method.golden",
-			info:   multiMethodInfo(),
+			infos:  []ServiceEmitInfo{multiMethodInfo()},
 		},
 		{
 			name:   "with_connect",
 			golden: "with_connect.golden",
-			info:   withConnectInfo(),
+			infos:  []ServiceEmitInfo{withConnectInfo()},
 		},
 		{
 			name:   "wellknown_types",
 			golden: "wellknown_types.golden",
-			info:   wellKnownTypesInfo(),
+			infos:  []ServiceEmitInfo{wellKnownTypesInfo()},
 		},
 		{
 			name:   "empty_service",
 			golden: "empty_service.golden",
-			info:   emptyServiceInfo(),
+			infos:  []ServiceEmitInfo{emptyServiceInfo()},
+		},
+		{
+			name:   "deprecated_method",
+			golden: "deprecated_method.golden",
+			infos:  []ServiceEmitInfo{deprecatedMethodInfo()},
+		},
+		{
+			name:   "all_field_types",
+			golden: "all_field_types.golden",
+			infos:  []ServiceEmitInfo{allFieldTypesInfo()},
+		},
+		{
+			name:   "no_tools",
+			golden: "no_tools.golden",
+			infos:  []ServiceEmitInfo{noToolsInfo()},
+		},
+		{
+			name:   "multiple_services",
+			golden: "multiple_services.golden",
+			infos:  multiServiceInfo(),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := GenerateFile(tt.info)
+			f := GenerateFile(tt.infos)
 			var buf strings.Builder
 			if err := f.Render(&buf); err != nil {
 				t.Fatalf("Render failed: %v", err)
@@ -202,5 +222,113 @@ func emptyServiceInfo() ServiceEmitInfo {
 		},
 		GoPackage:    "server",
 		GoImportPath: "github.com/example/cmd/server",
+	}
+}
+
+// deprecatedMethodInfo returns a service with a deprecated method
+func deprecatedMethodInfo() ServiceEmitInfo {
+	return ServiceEmitInfo{
+		Service: extract.ServiceIR{
+			Name:     "LegacyService",
+			FullName: "legacy.v1.LegacyService",
+		},
+		Tools: []ToolEmitInfo{{
+			Tool: extract.ToolIR{
+				Name:           "LegacyService_OldMethod",
+				MethodName:     "OldMethod",
+				Description:    "[DEPRECATED] An old method",
+				InputTypeName:  "legacy.v1.OldRequest",
+				OutputTypeName: "legacy.v1.OldResponse",
+				InputSchema:    []byte(`{"type":"object"}`),
+				IsDeprecated:   true,
+			},
+			InputType:  TypeRef{ImportPath: "github.com/example/gen/legacy/v1", TypeName: "OldRequest"},
+			OutputType: TypeRef{ImportPath: "github.com/example/gen/legacy/v1", TypeName: "OldResponse"},
+		}},
+		GoPackage:    "server",
+		GoImportPath: "github.com/example/cmd/server",
+	}
+}
+
+// allFieldTypesInfo returns a service with various JSON schema types
+func allFieldTypesInfo() ServiceEmitInfo {
+	return ServiceEmitInfo{
+		Service: extract.ServiceIR{
+			Name:     "ComplexService",
+			FullName: "complex.v1.ComplexService",
+		},
+		Tools: []ToolEmitInfo{{
+			Tool: extract.ToolIR{
+				Name:           "ComplexService_DoComplex",
+				MethodName:     "DoComplex",
+				Description:    "Does complex things",
+				InputTypeName:  "complex.v1.ComplexRequest",
+				OutputTypeName: "complex.v1.ComplexResponse",
+				InputSchema:    []byte(`{"type":"object","properties":{"string_field":{"type":"string"},"int_field":{"type":"integer"},"bool_field":{"type":"boolean"},"array_field":{"type":"array","items":{"type":"string"}},"object_field":{"type":"object","properties":{"nested":{"type":"string"}}}}}`),
+			},
+			InputType:  TypeRef{ImportPath: "github.com/example/gen/complex/v1", TypeName: "ComplexRequest"},
+			OutputType: TypeRef{ImportPath: "github.com/example/gen/complex/v1", TypeName: "ComplexResponse"},
+		}},
+		GoPackage:    "server",
+		GoImportPath: "github.com/example/cmd/server",
+	}
+}
+
+// noToolsInfo returns a service with no tools (edge case)
+func noToolsInfo() ServiceEmitInfo {
+	return ServiceEmitInfo{
+		Service: extract.ServiceIR{
+			Name:     "SkippedService",
+			FullName: "skipped.v1.SkippedService",
+		},
+		Tools:        []ToolEmitInfo{},
+		GoPackage:    "server",
+		GoImportPath: "github.com/example/cmd/server",
+	}
+}
+
+// multiServiceInfo returns multiple services
+func multiServiceInfo() []ServiceEmitInfo {
+	return []ServiceEmitInfo{
+		{
+			Service: extract.ServiceIR{
+				Name:     "ServiceA",
+				FullName: "multi.v1.ServiceA",
+			},
+			Tools: []ToolEmitInfo{{
+				Tool: extract.ToolIR{
+					Name:           "ServiceA_MethodA",
+					MethodName:     "MethodA",
+					Description:    "Method A",
+					InputTypeName:  "multi.v1.RequestA",
+					OutputTypeName: "multi.v1.ResponseA",
+					InputSchema:    []byte(`{"type":"object"}`),
+				},
+				InputType:  TypeRef{ImportPath: "github.com/example/gen/multi/v1", TypeName: "RequestA"},
+				OutputType: TypeRef{ImportPath: "github.com/example/gen/multi/v1", TypeName: "ResponseA"},
+			}},
+			GoPackage:    "server",
+			GoImportPath: "github.com/example/cmd/server",
+		},
+		{
+			Service: extract.ServiceIR{
+				Name:     "ServiceB",
+				FullName: "multi.v1.ServiceB",
+			},
+			Tools: []ToolEmitInfo{{
+				Tool: extract.ToolIR{
+					Name:           "ServiceB_MethodB",
+					MethodName:     "MethodB",
+					Description:    "Method B",
+					InputTypeName:  "multi.v1.RequestB",
+					OutputTypeName: "multi.v1.ResponseB",
+					InputSchema:    []byte(`{"type":"object"}`),
+				},
+				InputType:  TypeRef{ImportPath: "github.com/example/gen/multi/v1", TypeName: "RequestB"},
+				OutputType: TypeRef{ImportPath: "github.com/example/gen/multi/v1", TypeName: "ResponseB"},
+			}},
+			GoPackage:    "server",
+			GoImportPath: "github.com/example/cmd/server",
+		},
 	}
 }
