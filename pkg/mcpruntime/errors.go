@@ -47,12 +47,12 @@ var (
 	hostPortPattern = regexp.MustCompile(`[a-zA-Z0-9._-]+:\d{2,5}`)
 )
 
-// SanitizeErrorMessage strips internal details from error messages.
+// sanitizeErrorMessage strips internal details from error messages.
 // Takes only the first line, checks for sensitive patterns on the full
 // content, then caps at 200 chars. This ordering prevents truncation
 // from splitting a host:port or path at the boundary and bypassing
 // the pattern checks.
-func SanitizeErrorMessage(msg string) string {
+func sanitizeErrorMessage(msg string) string {
 	// Take only the first line.
 	if idx := strings.IndexByte(msg, '\n'); idx != -1 {
 		msg = msg[:idx]
@@ -93,7 +93,17 @@ func SanitizeErrorMessage(msg string) string {
 // InvalidParamsError creates a CallToolResult for invalid input parameters.
 func InvalidParamsError(err error) *CallToolResult {
 	return NewErrorResultWithDetails(
-		fmt.Sprintf("invalid input: %s", SanitizeErrorMessage(err.Error())),
+		fmt.Sprintf("invalid input: %s", sanitizeErrorMessage(err.Error())),
+		"INVALID_ARGUMENT",
+		nil,
+	)
+}
+
+// InvalidParamsMessage creates a CallToolResult for invalid input with a raw message.
+// The message is sanitized to strip internal details before being returned.
+func InvalidParamsMessage(msg string) *CallToolResult {
+	return NewErrorResultWithDetails(
+		fmt.Sprintf("invalid input: %s", sanitizeErrorMessage(msg)),
 		"INVALID_ARGUMENT",
 		nil,
 	)

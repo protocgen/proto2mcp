@@ -28,7 +28,7 @@ func FuzzUnmarshalToolInput(f *testing.F) {
 	})
 }
 
-// FuzzSanitizeErrorMessage verifies that SanitizeErrorMessage always
+// FuzzSanitizeErrorMessage verifies that sanitizeErrorMessage always
 // returns a string of at most 200 characters, regardless of input.
 func FuzzSanitizeErrorMessage(f *testing.F) {
 	// Seed corpus
@@ -41,7 +41,7 @@ func FuzzSanitizeErrorMessage(f *testing.F) {
 	f.Add("a]]]long string that is over two hundred characters long and should be truncated by the sanitizer to ensure we never leak excessive information in error messages returned to clients which could be a security concern")
 
 	f.Fuzz(func(t *testing.T, msg string) {
-		result := SanitizeErrorMessage(msg)
+		result := sanitizeErrorMessage(msg)
 
 		// Property: result must never exceed 200 characters
 		if len(result) > 200 {

@@ -53,18 +53,3 @@ func ExampleWithHeaders() {
 	// Output:
 	// Bearer tok_abc123
 }
-
-// ExampleSanitizeErrorMessage demonstrates error message sanitization.
-func ExampleSanitizeErrorMessage() {
-	// Clean error messages pass through.
-	fmt.Println(mcpruntime.SanitizeErrorMessage("field 'name' is required"))
-
-	// Internal details are stripped.
-	fmt.Println(mcpruntime.SanitizeErrorMessage("connection refused at backend-svc:50051"))
-	fmt.Println(mcpruntime.SanitizeErrorMessage("goroutine 1 [running]:\nmain.main()"))
-
-	// Output:
-	// field 'name' is required
-	// invalid input parameters
-	// invalid input parameters
-}

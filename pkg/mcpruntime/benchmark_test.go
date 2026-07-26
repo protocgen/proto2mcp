@@ -44,21 +44,21 @@ func BenchmarkSanitizeErrorMessage(b *testing.B) {
 	b.Run("clean", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			_ = SanitizeErrorMessage("connection timeout")
+			_ = sanitizeErrorMessage("connection timeout")
 		}
 	})
 
 	b.Run("with_path", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			_ = SanitizeErrorMessage("failed to read /Users/admin/secrets/config.yaml: permission denied")
+			_ = sanitizeErrorMessage("failed to read /Users/admin/secrets/config.yaml: permission denied")
 		}
 	})
 
 	b.Run("with_host_port", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			_ = SanitizeErrorMessage("connection refused at 192.168.1.100:5432")
+			_ = sanitizeErrorMessage("connection refused at 192.168.1.100:5432")
 		}
 	})
 
@@ -66,7 +66,7 @@ func BenchmarkSanitizeErrorMessage(b *testing.B) {
 		b.ReportAllocs()
 		long := "error: " + string(make([]byte, 500))
 		for b.Loop() {
-			_ = SanitizeErrorMessage(long)
+			_ = sanitizeErrorMessage(long)
 		}
 	})
 }

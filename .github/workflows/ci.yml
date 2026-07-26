@@ -11,10 +11,15 @@ permissions:
 
 jobs:
   build:
-    name: Build & Vet
-    runs-on: ubuntu-latest
+    name: Build & Vet (${{ matrix.os }} / Go ${{ matrix.go-version }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         go-version: ['1.25']
 
     steps:
@@ -27,20 +32,34 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Go mod download
+      - name: Go mod download (root)
         run: go mod download
 
-      - name: Build
+      - name: Go mod download (codegen)
+        run: cd codegen && go mod download
+
+      - name: Build (root)
         run: go build ./...
 
-      - name: Vet
+      - name: Build (codegen)
+        run: cd codegen && go build ./...
+
+      - name: Vet (root)
         run: go vet ./...
 
+      - name: Vet (codegen)
+        run: cd codegen && go vet ./...
+
   test:
-    name: Test
-    runs-on: ubuntu-latest
+    name: Test (${{ matrix.os }} / Go ${{ matrix.go-version }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         go-version: ['1.25']
 
     steps:
@@ -53,13 +72,23 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Go mod download
+      - name: Go mod download (root)
         run: go mod download
 
-      - name: Test
-        run: go test -race -count=1 -coverprofile=coverage.txt -covermode=atomic ./...
-      - name: Coverage Summary
-        run: go tool cover -func=coverage.txt | tail -1
+      - name: Go mod download (codegen)
+        run: cd codegen && go mod download
+
+      - name: Test (root)
+        run: go test -race -count=1 -coverprofile=coverage-runtime.txt -covermode=atomic ./...
+
+      - name: Test (codegen)
+        run: cd codegen && go test -race -count=1 -coverprofile=coverage-codegen.txt -covermode=atomic ./...
+
+      - name: Coverage Summary (root)
+        run: go tool cover -func=coverage-runtime.txt | tail -1
+
+      - name: Coverage Summary (codegen)
+        run: cd codegen && go tool cover -func=coverage-codegen.txt | tail -1
 
   lint:
     name: Lint
@@ -75,10 +104,16 @@ jobs:
         with:
           go-version: '1.25'
 
-      - name: golangci-lint
+      - name: golangci-lint (root)
         uses: golangci/golangci-lint-action@d583c34f0599d37dbac4a198b9c83201be380893 # v9.3.0
         with:
           version: v2.12.2
+
+      - name: golangci-lint (codegen)
+        uses: golangci/golangci-lint-action@d583c34f0599d37dbac4a198b9c83201be380893 # v9.3.0
+        with:
+          version: v2.12.2
+          working-directory: codegen
 
   proto:
     name: Proto Lint
@@ -109,7 +144,9 @@ jobs:
           go-version: '1.25'
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
-      - name: Run govulncheck
+      - name: Run govulncheck (root)
         run: govulncheck ./...
         continue-on-error: true
-
+      - name: Run govulncheck (codegen)
+        run: cd codegen && govulncheck ./...
+        continue-on-error: true

@@ -8,7 +8,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/protocgen/proto2mcp/pkg/mcpruntime"
 	"github.com/protocgen/proto2mcp/pkg/mcpruntime/connectbridge"
@@ -109,39 +110,51 @@ func RegisterPatientServiceMCP(registry *mcpruntime.ToolRegistry, handler Patien
 
 // --- User's implementation ---
 
-type myHandler struct{}
+type myHandler struct {
+	logger *slog.Logger
+}
 
 func (h *myHandler) GetPatient(_ context.Context, req *GetPatientRequest) (*GetPatientResponse, error) {
-	log.Println("GetPatient called")
+	h.logger.Info("GetPatient called", "patient_id", req.PatientId)
 	return &GetPatientResponse{PatientId: req.PatientId}, nil
 }
 
 func (h *myHandler) ListPatients(_ context.Context, req *ListPatientsRequest) (*ListPatientsResponse, error) {
-	log.Printf("ListPatients called with limit %d", req.Limit)
+	h.logger.Info("ListPatients called", "limit", req.Limit)
 	return &ListPatientsResponse{}, nil
 }
 
 func (h *myHandler) CreateAppointment(_ context.Context, req *CreateAppointmentRequest) (*CreateAppointmentResponse, error) {
-	log.Println("CreateAppointment called")
+	h.logger.Info("CreateAppointment called",
+		"patient_id", req.PatientId,
+		"doctor_id", req.DoctorId,
+	)
 	return &CreateAppointmentResponse{AppointmentId: "appt-123"}, nil
 }
 
 func main() {
+	// Set up structured logging.
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+
 	// 1. Create a tool registry.
 	registry := mcpruntime.NewToolRegistry()
 
 	// 2. Implement the handler.
-	handler := &myHandler{}
+	handler := &myHandler{logger: logger}
 
 	// 3. Register MCP tools (this is generated code in real usage).
 	RegisterPatientServiceMCP(registry, handler)
 
 	// 4. Print registered tools.
-	log.Printf("Registered %d tools:", len(registry.Tools()))
+	logger.Info("MCP server ready", "tool_count", len(registry.Tools()))
 	for _, tool := range registry.Tools() {
-		log.Printf("  - %s: %s", tool.Name, tool.Description)
+		logger.Info("registered tool",
+			"name", tool.Name,
+			"description", tool.Description,
+		)
 	}
 
 	// In production, you'd hook registry into an MCP transport (stdio, SSE, etc.)
-	log.Println("MCP server ready.")
 }

@@ -99,12 +99,7 @@ func mapInvalidArgument(connectErr *connect.Error) *mcpruntime.CallToolResult {
 	if len(violations) == 0 {
 		// No structured details found — use the connect error message
 		// but sanitize it (take only the first line, cap length).
-		sanitized := mcpruntime.SanitizeErrorMessage(connectErr.Message())
-		return mcpruntime.NewErrorResultWithDetails(
-			fmt.Sprintf("invalid input: %s", sanitized),
-			"INVALID_ARGUMENT",
-			nil,
-		)
+		return mcpruntime.InvalidParamsMessage(connectErr.Message())
 	}
 
 	return mcpruntime.NewErrorResultWithDetails(

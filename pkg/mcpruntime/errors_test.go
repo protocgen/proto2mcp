@@ -9,42 +9,42 @@ import (
 )
 
 func TestSanitizeErrorMessage_Clean(t *testing.T) {
-	msg := SanitizeErrorMessage("field 'name' is required")
+	msg := sanitizeErrorMessage("field 'name' is required")
 	if msg != "field 'name' is required" {
 		t.Fatalf("expected clean passthrough, got %q", msg)
 	}
 }
 
 func TestSanitizeErrorMessage_StackTrace(t *testing.T) {
-	msg := SanitizeErrorMessage("goroutine 1 [running]:\nmain.main()")
+	msg := sanitizeErrorMessage("goroutine 1 [running]:\nmain.main()")
 	if msg != "invalid input parameters" {
 		t.Fatalf("expected sanitized, got %q", msg)
 	}
 }
 
 func TestSanitizeErrorMessage_GoFilePath(t *testing.T) {
-	msg := SanitizeErrorMessage("error at /home/user/service/handler.go:142")
+	msg := sanitizeErrorMessage("error at /home/user/service/handler.go:142")
 	if msg != "invalid input parameters" {
 		t.Fatalf("expected sanitized for .go: pattern, got %q", msg)
 	}
 }
 
 func TestSanitizeErrorMessage_AbsoluteFilePath(t *testing.T) {
-	msg := SanitizeErrorMessage("failed to open /var/lib/data/patients.db")
+	msg := sanitizeErrorMessage("failed to open /var/lib/data/patients.db")
 	if msg != "invalid input parameters" {
 		t.Fatalf("expected sanitized for absolute path, got %q", msg)
 	}
 }
 
 func TestSanitizeErrorMessage_HostPort(t *testing.T) {
-	msg := SanitizeErrorMessage("connection refused to backend-svc:50051")
+	msg := sanitizeErrorMessage("connection refused to backend-svc:50051")
 	if msg != "invalid input parameters" {
 		t.Fatalf("expected sanitized for host:port, got %q", msg)
 	}
 }
 
 func TestSanitizeErrorMessage_Localhost(t *testing.T) {
-	msg := SanitizeErrorMessage("dial tcp localhost:8080: connection refused")
+	msg := sanitizeErrorMessage("dial tcp localhost:8080: connection refused")
 	if msg != "invalid input parameters" {
 		t.Fatalf("expected sanitized for localhost:port, got %q", msg)
 	}
@@ -55,14 +55,14 @@ func TestSanitizeErrorMessage_TruncatesLong(t *testing.T) {
 	for i := 0; i < 300; i++ {
 		long += "x"
 	}
-	msg := SanitizeErrorMessage(long)
+	msg := sanitizeErrorMessage(long)
 	if len(msg) > 210 { // 200 + "..."
 		t.Fatalf("expected truncated to ~200 chars, got %d", len(msg))
 	}
 }
 
 func TestSanitizeErrorMessage_MultiLine(t *testing.T) {
-	msg := SanitizeErrorMessage("first line\nsecond line\nthird line")
+	msg := sanitizeErrorMessage("first line\nsecond line\nthird line")
 	if msg != "first line" {
 		t.Fatalf("expected first line only, got %q", msg)
 	}

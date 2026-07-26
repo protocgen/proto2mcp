@@ -91,11 +91,16 @@ func TestGoldenFiles(t *testing.T) {
 				t.Fatalf("reading golden file %s: %v\nRun with -update to create it", goldenPath, err)
 			}
 
-			if got != string(want) {
+			// Normalize line endings for cross-platform compatibility.
+			// Jennifer's Render() may produce \r\n on Windows.
+			got = strings.ReplaceAll(got, "\r\n", "\n")
+			wantStr := strings.ReplaceAll(string(want), "\r\n", "\n")
+
+			if got != wantStr {
 				t.Errorf("output mismatch for %s\nRun with -update to update golden file", tt.golden)
 				// Show first diff line
 				gotLines := strings.Split(got, "\n")
-				wantLines := strings.Split(string(want), "\n")
+				wantLines := strings.Split(wantStr, "\n")
 				for i := 0; i < len(gotLines) && i < len(wantLines); i++ {
 					if gotLines[i] != wantLines[i] {
 						t.Errorf("first diff at line %d:\n  got:  %s\n  want: %s", i+1, gotLines[i], wantLines[i])
