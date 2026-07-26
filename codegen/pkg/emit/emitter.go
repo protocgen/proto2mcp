@@ -2,7 +2,7 @@ package emit
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/protocgen/proto2mcp/pkg/extract"
+	"github.com/protocgen/proto2mcp/codegen/pkg/extract"
 )
 
 const (

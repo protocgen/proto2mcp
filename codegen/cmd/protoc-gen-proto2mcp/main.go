@@ -8,8 +8,8 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 
-	"github.com/protocgen/proto2mcp/pkg/emit"
-	"github.com/protocgen/proto2mcp/pkg/extract"
+	"github.com/protocgen/proto2mcp/codegen/pkg/emit"
+	"github.com/protocgen/proto2mcp/codegen/pkg/extract"
 )
 
 func main() {
