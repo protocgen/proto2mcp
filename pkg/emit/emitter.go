@@ -8,6 +8,8 @@ import (
 const (
 	// runtimePkg is the import path for the mcpruntime package.
 	runtimePkg = "github.com/protocgen/proto2mcp/pkg/mcpruntime"
+	// connectBridgePkg is the import path for the connectbridge package.
+	connectBridgePkg = "github.com/protocgen/proto2mcp/pkg/mcpruntime/connectbridge"
 	// connectPkg is the import path for ConnectRPC.
 	connectPkg = "connectrpc.com/connect"
 )

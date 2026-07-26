@@ -11,6 +11,7 @@ import (
 	"log"
 
 	"github.com/protocgen/proto2mcp/pkg/mcpruntime"
+	"github.com/protocgen/proto2mcp/pkg/mcpruntime/connectbridge"
 )
 
 // --- Simulated generated types (in real usage, these come from protoc) ---
@@ -56,7 +57,7 @@ func RegisterPatientServiceMCP(registry *mcpruntime.ToolRegistry, handler Patien
 			}
 			resp, err := handler.GetPatient(ctx, &input)
 			if err != nil {
-				return mcpruntime.MapConnectError(err), nil
+				return connectbridge.MapConnectError(err), nil
 			}
 			b, _ := json.Marshal(resp)
 			return &mcpruntime.CallToolResult{Content: b}, nil
@@ -77,7 +78,7 @@ func RegisterPatientServiceMCP(registry *mcpruntime.ToolRegistry, handler Patien
 			}
 			resp, err := handler.ListPatients(ctx, &input)
 			if err != nil {
-				return mcpruntime.MapConnectError(err), nil
+				return connectbridge.MapConnectError(err), nil
 			}
 			b, _ := json.Marshal(resp)
 			return &mcpruntime.CallToolResult{Content: b}, nil
@@ -98,7 +99,7 @@ func RegisterPatientServiceMCP(registry *mcpruntime.ToolRegistry, handler Patien
 			}
 			resp, err := handler.CreateAppointment(ctx, &input)
 			if err != nil {
-				return mcpruntime.MapConnectError(err), nil
+				return connectbridge.MapConnectError(err), nil
 			}
 			b, _ := json.Marshal(resp)
 			return &mcpruntime.CallToolResult{Content: b}, nil

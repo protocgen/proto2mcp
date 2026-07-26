@@ -189,22 +189,22 @@ func extractInt64Constraints(r *validatepb.Int64Rules, result map[string]any, de
 		return
 	}
 	if r.HasGt() {
-		result["exclusiveMinimum"] = r.GetGt()
+		*descs = append(*descs, fmt.Sprintf("Value must be > %v", r.GetGt()))
 	}
 	if r.HasGte() {
-		result["minimum"] = r.GetGte()
+		*descs = append(*descs, fmt.Sprintf("Value must be >= %v", r.GetGte()))
 	}
 	if r.HasLt() {
-		result["exclusiveMaximum"] = r.GetLt()
+		*descs = append(*descs, fmt.Sprintf("Value must be < %v", r.GetLt()))
 	}
 	if r.HasLte() {
-		result["maximum"] = r.GetLte()
+		*descs = append(*descs, fmt.Sprintf("Value must be <= %v", r.GetLte()))
 	}
 	if r.HasConst() {
-		result["const"] = r.GetConst()
+		*descs = append(*descs, fmt.Sprintf("Value must be %v", r.GetConst()))
 	}
 	if len(r.GetIn()) > 0 {
-		result["enum"] = r.GetIn()
+		*descs = append(*descs, fmt.Sprintf("Must be one of: %v", r.GetIn()))
 	}
 	if len(r.GetNotIn()) > 0 {
 		*descs = append(*descs, fmt.Sprintf("Must not be one of: %v", r.GetNotIn()))
@@ -245,22 +245,22 @@ func extractUint64Constraints(r *validatepb.UInt64Rules, result map[string]any, 
 		return
 	}
 	if r.HasGt() {
-		result["exclusiveMinimum"] = r.GetGt()
+		*descs = append(*descs, fmt.Sprintf("Value must be > %v", r.GetGt()))
 	}
 	if r.HasGte() {
-		result["minimum"] = r.GetGte()
+		*descs = append(*descs, fmt.Sprintf("Value must be >= %v", r.GetGte()))
 	}
 	if r.HasLt() {
-		result["exclusiveMaximum"] = r.GetLt()
+		*descs = append(*descs, fmt.Sprintf("Value must be < %v", r.GetLt()))
 	}
 	if r.HasLte() {
-		result["maximum"] = r.GetLte()
+		*descs = append(*descs, fmt.Sprintf("Value must be <= %v", r.GetLte()))
 	}
 	if r.HasConst() {
-		result["const"] = r.GetConst()
+		*descs = append(*descs, fmt.Sprintf("Value must be %v", r.GetConst()))
 	}
 	if len(r.GetIn()) > 0 {
-		result["enum"] = r.GetIn()
+		*descs = append(*descs, fmt.Sprintf("Must be one of: %v", r.GetIn()))
 	}
 	if len(r.GetNotIn()) > 0 {
 		*descs = append(*descs, fmt.Sprintf("Must not be one of: %v", r.GetNotIn()))

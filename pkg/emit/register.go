@@ -67,7 +67,7 @@ func generateRegisterCall(g *jen.Group, t ToolEmitInfo) {
 		),
 		jen.List(jen.Id("resp"), jen.Err()).Op(":=").Id("handler").Dot(t.Tool.MethodName).Call(jen.Id("ctx"), jen.Op("&").Id("input")),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Return(jen.Qual(runtimePkg, "MapConnectError").Call(jen.Err()), jen.Nil()),
+			jen.Return(jen.Qual(connectBridgePkg, "MapConnectError").Call(jen.Err()), jen.Nil()),
 		),
 		jen.Return(jen.Qual(runtimePkg, "MarshalToolResult").Call(jen.Id("resp"))),
 	)
