@@ -15,9 +15,9 @@ func DefaultToolNamer(serviceName, methodName string) string {
 
 // Config holds the configuration for a registered service.
 type Config struct {
-	Middleware      []Middleware
-	TenantExtractor TenantExtractorFunc
-	ToolNamer       ToolNamerFunc
+	middleware      []Middleware
+	tenantExtractor TenantExtractorFunc
+	toolNamer       ToolNamerFunc
 }
 
 // Option configures a Config.
@@ -26,7 +26,7 @@ type Option func(*Config)
 // NewConfig creates a Config with defaults and applies options.
 func NewConfig(opts ...Option) *Config {
 	c := &Config{
-		ToolNamer: DefaultToolNamer,
+		toolNamer: DefaultToolNamer,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -37,31 +37,36 @@ func NewConfig(opts ...Option) *Config {
 // WithMiddleware adds middleware to the chain.
 func WithMiddleware(mw ...Middleware) Option {
 	return func(c *Config) {
-		c.Middleware = append(c.Middleware, mw...)
+		c.middleware = append(c.middleware, mw...)
 	}
 }
 
 // WithTenantExtractor sets the tenant extraction function.
 func WithTenantExtractor(fn TenantExtractorFunc) Option {
 	return func(c *Config) {
-		c.TenantExtractor = fn
+		c.tenantExtractor = fn
 	}
 }
 
 // WithToolNamer sets a custom tool naming function.
 func WithToolNamer(fn ToolNamerFunc) Option {
 	return func(c *Config) {
-		c.ToolNamer = fn
+		c.toolNamer = fn
 	}
 }
 
 // WrapHandler wraps a handler with the configured middleware chain.
 func (c *Config) WrapHandler(toolName string, handler HandlerFunc) HandlerFunc {
-	if len(c.Middleware) == 0 {
+	if len(c.middleware) == 0 {
 		return handler
 	}
-	chain := ChainMiddleware(c.Middleware...)
-	return func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
-		return chain.HandleToolCall(ctx, req, handler)
+	chain := handler
+	for i := len(c.middleware) - 1; i >= 0; i-- {
+		mw := c.middleware[i]
+		next := chain
+		chain = func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+			return mw.HandleToolCall(ctx, req, next)
+		}
 	}
+	return chain
 }

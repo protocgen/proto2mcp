@@ -11,6 +11,9 @@ import (
 // MaxRecursionDepth is the maximum nesting depth for schema generation.
 const MaxRecursionDepth = 6
 
+// boolPtr is a helper to get a pointer to a boolean.
+func boolPtr(b bool) *bool { return &b }
+
 // anyFullName is the fully qualified name for google.protobuf.Any.
 const anyFullName = "google.protobuf.Any"
 
@@ -50,7 +53,7 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 	var jsonType, format string
 	var enum []string
 	var props []SchemaField
-	var addProps *SchemaField
+	var addProps any
 	var items *SchemaField
 
 	kind := field.Desc.Kind()
@@ -80,6 +83,8 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 		}
 	} else if kind == protoreflect.MessageKind || kind == protoreflect.GroupKind {
 		fullName := field.Message.Desc.FullName()
+		sf.Title = string(field.Message.Desc.Name())
+		sf.AdditionalProperties = boolPtr(false)
 
 		// google.protobuf.Any cannot be represented as JSON Schema.
 		// The linter emits WarnError for this; here we emit a placeholder.
@@ -105,6 +110,7 @@ func protoFieldToSchemaField(field *protogen.Field, depth int) SchemaField {
 			}
 		} else {
 			jsonType = "object"
+			addProps = boolPtr(false)
 			if depth >= MaxRecursionDepth {
 				if descBuilder.Len() > 0 {
 					descBuilder.WriteString("\n")

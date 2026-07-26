@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	v1 "github.com/example/gen/commerce/v1"
 	mcpruntime "github.com/protocgen/proto2mcp/pkg/mcpruntime"
+	connectbridge "github.com/protocgen/proto2mcp/pkg/mcpruntime/connectbridge"
 )
 
 type OrderServiceMCPHandler interface {
@@ -43,7 +44,7 @@ func RegisterOrderServiceMCP(registry *mcpruntime.ToolRegistry, handler OrderSer
 		}
 		resp, err := handler.CreateOrder(ctx, &input)
 		if err != nil {
-			return mcpruntime.MapConnectError(err), nil
+			return connectbridge.MapConnectError(err), nil
 		}
 		return mcpruntime.MarshalToolResult(resp)
 	}))
@@ -58,7 +59,7 @@ func RegisterOrderServiceMCP(registry *mcpruntime.ToolRegistry, handler OrderSer
 		}
 		resp, err := handler.GetOrder(ctx, &input)
 		if err != nil {
-			return mcpruntime.MapConnectError(err), nil
+			return connectbridge.MapConnectError(err), nil
 		}
 		return mcpruntime.MarshalToolResult(resp)
 	}))
@@ -73,7 +74,7 @@ func RegisterOrderServiceMCP(registry *mcpruntime.ToolRegistry, handler OrderSer
 		}
 		resp, err := handler.CancelOrder(ctx, &input)
 		if err != nil {
-			return mcpruntime.MapConnectError(err), nil
+			return connectbridge.MapConnectError(err), nil
 		}
 		return mcpruntime.MarshalToolResult(resp)
 	}))

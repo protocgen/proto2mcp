@@ -15,7 +15,7 @@ func TestMarshalSchemaFields(t *testing.T) {
 		{
 			name:   "empty fields",
 			fields: []SchemaField{},
-			want:   `{"type":"object"}`,
+			want:   `{"additionalProperties":false,"type":"object"}`,
 		},
 		{
 			name: "simple object",
@@ -24,7 +24,7 @@ func TestMarshalSchemaFields(t *testing.T) {
 				{Name: "int_field", Type: "integer"},
 				{Name: "bool_field", Type: "boolean", Required: true},
 			},
-			want: `{"type":"object","properties":{"bool_field":{"type":"boolean"},"int_field":{"type":"integer"},"str_field":{"description":"A string","type":"string"}},"required":["bool_field"]}`,
+			want: `{"additionalProperties":false,"type":"object","properties":{"bool_field":{"type":"boolean"},"int_field":{"type":"integer"},"str_field":{"description":"A string","type":"string"}},"required":["bool_field"]}`,
 		},
 		{
 			name: "nested object",
@@ -38,7 +38,7 @@ func TestMarshalSchemaFields(t *testing.T) {
 					Required: true,
 				},
 			},
-			want: `{"type":"object","properties":{"nested":{"properties":{"inner_str":{"type":"string"}},"required":["inner_str"],"type":"object"}},"required":["nested"]}`,
+			want: `{"additionalProperties":false,"type":"object","properties":{"nested":{"properties":{"inner_str":{"type":"string"}},"required":["inner_str"],"type":"object"}},"required":["nested"]}`,
 		},
 		{
 			name: "array field",
@@ -51,7 +51,7 @@ func TestMarshalSchemaFields(t *testing.T) {
 					},
 				},
 			},
-			want: `{"type":"object","properties":{"arr":{"items":{"type":"string"},"type":"array"}}}`,
+			want: `{"additionalProperties":false,"type":"object","properties":{"arr":{"items":{"type":"string"},"type":"array"}}}`,
 		},
 		{
 			name: "map field",
@@ -64,7 +64,7 @@ func TestMarshalSchemaFields(t *testing.T) {
 					},
 				},
 			},
-			want: `{"type":"object","properties":{"map_field":{"additionalProperties":{"type":"integer"},"type":"object"}}}`,
+			want: `{"additionalProperties":false,"type":"object","properties":{"map_field":{"additionalProperties":{"type":"integer"},"type":"object"}}}`,
 		},
 		{
 			name: "oneof field",
@@ -77,7 +77,7 @@ func TestMarshalSchemaFields(t *testing.T) {
 					},
 				},
 			},
-			want: `{"type":"object","properties":{"choice":{"oneOf":[{"type":"string"},{"type":"integer"}]}}}`,
+			want: `{"additionalProperties":false,"type":"object","properties":{"choice":{"oneOf":[{"type":"string"},{"type":"integer"}]}}}`,
 		},
 		{
 			name: "constraints",
@@ -91,7 +91,7 @@ func TestMarshalSchemaFields(t *testing.T) {
 					},
 				},
 			},
-			want: `{"type":"object","properties":{"constrained_str":{"minLength":5,"pattern":"^[a-z]+$","type":"string"}}}`,
+			want: `{"additionalProperties":false,"type":"object","properties":{"constrained_str":{"minLength":5,"pattern":"^[a-z]+$","type":"string"}}}`,
 		},
 	}
 

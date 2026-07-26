@@ -122,6 +122,8 @@ const (
 type SchemaField struct {
 	// Name of the field.
 	Name string
+	// Title of the schema, typically the message name.
+	Title string `json:"title,omitempty"`
 	// Type of the field: "string", "integer", "number", "boolean", "object", "array".
 	Type string
 	// Description of the field.
@@ -134,9 +136,9 @@ type SchemaField struct {
 	Properties []SchemaField
 	// Items represents the item type for arrays.
 	Items *SchemaField
-	// AdditionalProperties represents the value type for proto maps.
-	// When set, Type should be "object" and Properties should be empty.
-	AdditionalProperties *SchemaField
+	// AdditionalProperties represents the value type for proto maps (*SchemaField)
+	// or a boolean (*bool) for strict schemas to prevent hallucinations.
+	AdditionalProperties any `json:"additionalProperties,omitempty"`
 	// OneOf represents mutually exclusive alternatives (proto oneof).
 	OneOf []SchemaField
 	// Enum holds possible values for proto enums.
@@ -163,8 +165,9 @@ type jsonSchema struct {
 // object (as json.RawMessage). This is used to populate ToolIR.InputSchema.
 func MarshalSchemaFields(fields []SchemaField) (json.RawMessage, error) {
 	schema := jsonSchema{
-		Type:       "object",
-		Properties: make(map[string]any),
+		Type:                 "object",
+		Properties:           make(map[string]any),
+		AdditionalProperties: false,
 	}
 
 	var required []string
@@ -186,6 +189,9 @@ func MarshalSchemaFields(fields []SchemaField) (json.RawMessage, error) {
 func fieldToJSONSchema(f SchemaField) map[string]any {
 	prop := make(map[string]any)
 
+	if f.Title != "" {
+		prop["title"] = f.Title
+	}
 	if f.Type != "" {
 		prop["type"] = f.Type
 	}
@@ -215,9 +221,17 @@ func fieldToJSONSchema(f SchemaField) map[string]any {
 		}
 	}
 
-	// Map type (additionalProperties)
+	// Map type or strict object (additionalProperties)
 	if f.AdditionalProperties != nil {
-		prop["additionalProperties"] = fieldToJSONSchema(*f.AdditionalProperties)
+		if b, ok := f.AdditionalProperties.(*bool); ok {
+			prop["additionalProperties"] = *b
+		} else if b, ok := f.AdditionalProperties.(bool); ok {
+			prop["additionalProperties"] = b
+		} else if sf, ok := f.AdditionalProperties.(*SchemaField); ok {
+			prop["additionalProperties"] = fieldToJSONSchema(*sf)
+		} else if sf, ok := f.AdditionalProperties.(SchemaField); ok {
+			prop["additionalProperties"] = fieldToJSONSchema(sf)
+		}
 	}
 
 	// Array type
