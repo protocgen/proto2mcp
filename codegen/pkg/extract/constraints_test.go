@@ -67,9 +67,14 @@ func TestExtractConstraints_CELRules(t *testing.T) {
 		CelExpression: []string{"this > 0"},
 		Cel: []*validatepb.Rule{
 			{
-				Id:         proto.String("my_rule"),
+				Id:         proto.String("with_message"),
 				Expression: proto.String("this < 100"),
 				Message:    proto.String("value must be less than 100"),
+			},
+			{
+				// Rule without message — should fall back to "CEL validation: <expr>"
+				Id:         proto.String("no_message"),
+				Expression: proto.String("this != 42"),
 			},
 		},
 	}
@@ -112,10 +117,17 @@ func TestExtractConstraints_CELRules(t *testing.T) {
 		t.Fatal("expected _constraint_notes to be a string")
 	}
 
+	// CelExpression (raw string)
 	if !strings.Contains(notes, "CEL validation: this > 0") {
-		t.Errorf("expected notes to contain CEL expression, got %q", notes)
+		t.Errorf("expected notes to contain raw CEL expression, got %q", notes)
 	}
+	// Cel Rule with message
 	if !strings.Contains(notes, "Validation rule: value must be less than 100 (CEL: this < 100)") {
-		t.Errorf("expected notes to contain CEL rule message, got %q", notes)
+		t.Errorf("expected notes to contain CEL rule with message, got %q", notes)
+	}
+	// Cel Rule without message — falls back to "CEL validation: <expr>"
+	if !strings.Contains(notes, "CEL validation: this != 42") {
+		t.Errorf("expected notes to contain CEL rule without message as fallback, got %q", notes)
 	}
 }
+

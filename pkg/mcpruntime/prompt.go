@@ -2,6 +2,7 @@ package mcpruntime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 )
@@ -20,10 +21,35 @@ type PromptDefinition struct {
 	Arguments   []PromptArgument `json:"arguments,omitempty"`
 }
 
-// PromptMessage represents a system, user, or assistant message returned in a prompt template.
+// PromptContent represents one piece of content in a prompt message.
+// MCP spec defines content as structured objects with a type discriminator.
+//
+// For text content:
+//
+//	PromptContent{Type: "text", Text: "Hello, world!"}
+//
+// For embedded resources (V2):
+//
+//	PromptContent{Type: "resource", Resource: json.RawMessage(`{...}`)}
+type PromptContent struct {
+	// Type discriminator: "text", "image", or "resource".
+	Type string `json:"type"`
+	// Text is the text payload when Type is "text".
+	Text string `json:"text,omitempty"`
+	// Resource is the embedded resource payload when Type is "resource".
+	// V2: structured as json.RawMessage for forward compatibility.
+	Resource json.RawMessage `json:"resource,omitempty"`
+}
+
+// TextContent is a convenience constructor for text prompt content.
+func TextContent(text string) PromptContent {
+	return PromptContent{Type: "text", Text: text}
+}
+
+// PromptMessage represents a single message in a prompt template result.
 type PromptMessage struct {
-	Role    string `json:"role"` // "user", "assistant", or "system"
-	Content string `json:"content"`
+	Role    string        `json:"role"` // "user", "assistant", or "system"
+	Content PromptContent `json:"content"`
 }
 
 // GetPromptResult contains the generated messages for an LLM prompt.
@@ -35,17 +61,28 @@ type GetPromptResult struct {
 // PromptHandlerFunc generates the list of messages for a prompt template given arguments.
 type PromptHandlerFunc func(ctx context.Context, arguments map[string]string) (*GetPromptResult, error)
 
+// PromptRegistrar is the interface accepted by prompt registration functions.
+// This enables mocking in tests, distributed registries, and decorator patterns.
+type PromptRegistrar interface {
+	// RegisterPrompt adds a prompt template to the registry.
+	RegisterPrompt(def PromptDefinition, handler PromptHandlerFunc)
+}
+
 // PromptEntry holds a registered prompt definition and its evaluator/handler.
 type PromptEntry struct {
 	Definition PromptDefinition
 	Handler    PromptHandlerFunc
 }
 
-// PromptRegistry manages registered MCP prompt templates.
+// PromptRegistry is the default in-memory implementation of PromptRegistrar.
+// It manages registered MCP prompt templates with thread-safe access.
 type PromptRegistry struct {
 	mu      sync.RWMutex
 	prompts map[string]PromptEntry
 }
+
+// Verify PromptRegistry implements PromptRegistrar at compile time.
+var _ PromptRegistrar = (*PromptRegistry)(nil)
 
 // NewPromptRegistry creates a new empty PromptRegistry.
 func NewPromptRegistry() *PromptRegistry {
@@ -54,8 +91,8 @@ func NewPromptRegistry() *PromptRegistry {
 	}
 }
 
-// Register adds a prompt template to the registry.
-func (r *PromptRegistry) Register(def PromptDefinition, handler PromptHandlerFunc) {
+// RegisterPrompt adds a prompt template to the registry.
+func (r *PromptRegistry) RegisterPrompt(def PromptDefinition, handler PromptHandlerFunc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.prompts[def.Name] = PromptEntry{
@@ -94,10 +131,11 @@ func (r *PromptRegistry) Prompts() []PromptDefinition {
 }
 
 // EvaluatePrompt calls the prompt handler with the provided arguments.
+// Returns an MCPError with code "NOT_FOUND" if the prompt name is not registered.
 func (r *PromptRegistry) EvaluatePrompt(ctx context.Context, name string, arguments map[string]string) (*GetPromptResult, error) {
 	handler, ok := r.Lookup(name)
 	if !ok {
-		return nil, fmt.Errorf("prompt not found: %s", name)
+		return nil, NewMCPError("NOT_FOUND", fmt.Sprintf("prompt not found: %s", name))
 	}
 	return handler(ctx, arguments)
 }
