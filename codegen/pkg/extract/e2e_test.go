@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/protocgen/proto2mcp/pkg/emit"
-	"github.com/protocgen/proto2mcp/pkg/extract"
+	"github.com/protocgen/proto2mcp/codegen/pkg/emit"
+	"github.com/protocgen/proto2mcp/codegen/pkg/extract"
 
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/descriptorpb"

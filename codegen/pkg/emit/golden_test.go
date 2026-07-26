@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/protocgen/proto2mcp/pkg/extract"
+	"github.com/protocgen/proto2mcp/codegen/pkg/extract"
 )
 
 var update = flag.Bool("update", false, "update golden files")

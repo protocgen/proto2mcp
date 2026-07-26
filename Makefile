@@ -7,48 +7,52 @@
 
 .PHONY: build
 build: ## Build the protoc plugin binary
-	go build -o bin/protoc-gen-proto2mcp ./cmd/protoc-gen-proto2mcp
+	cd codegen && go build -o ../bin/protoc-gen-proto2mcp ./cmd/protoc-gen-proto2mcp
 
 .PHONY: install
 install: ## Install the plugin to $GOPATH/bin
-	go install ./cmd/protoc-gen-proto2mcp
+	cd codegen && go install ./cmd/protoc-gen-proto2mcp
 
 # ──────────────────────────────────────────────
 # Test
 # ──────────────────────────────────────────────
 
 .PHONY: test
-test: ## Run all tests with race detector
+test: ## Run all tests with race detector (both modules)
 	go test -race -count=1 ./...
+	cd codegen && go test -race -count=1 ./...
 
 .PHONY: test-cover
 test-cover: ## Run tests with coverage report
-	go test -race -coverprofile=coverage.txt -covermode=atomic ./...
-	go tool cover -func=coverage.txt
+	go test -race -coverprofile=coverage-runtime.txt -covermode=atomic ./...
+	cd codegen && go test -race -coverprofile=../coverage-codegen.txt -covermode=atomic ./...
 
 .PHONY: test-fuzz
 test-fuzz: ## Run fuzz tests for 30 seconds each
-	go test -fuzz=FuzzValidateToolName -fuzztime=30s ./pkg/extract/
-	go test -fuzz=FuzzProtoKindToJSONType -fuzztime=30s ./pkg/extract/
-	go test -fuzz=FuzzWellKnownSchema -fuzztime=30s ./pkg/extract/
+	cd codegen && go test -fuzz=FuzzValidateToolName -fuzztime=30s ./pkg/extract/
+	cd codegen && go test -fuzz=FuzzProtoKindToJSONType -fuzztime=30s ./pkg/extract/
+	cd codegen && go test -fuzz=FuzzWellKnownSchema -fuzztime=30s ./pkg/extract/
 	go test -fuzz=FuzzUnmarshalToolInput -fuzztime=30s ./pkg/mcpruntime/
 	go test -fuzz=FuzzSanitizeErrorMessage -fuzztime=30s ./pkg/mcpruntime/
 
 .PHONY: bench
-bench: ## Run benchmarks
+bench: ## Run benchmarks (both modules)
 	go test -bench=. -benchmem ./...
+	cd codegen && go test -bench=. -benchmem ./...
 
 # ──────────────────────────────────────────────
 # Lint
 # ──────────────────────────────────────────────
 
 .PHONY: lint
-lint: ## Run go vet
+lint: ## Run go vet (both modules)
 	go vet ./...
+	cd codegen && go vet ./...
 
 .PHONY: lint-full
 lint-full: lint ## Run golangci-lint (requires golangci-lint installed)
 	golangci-lint run ./...
+	cd codegen && golangci-lint run ./...
 
 # ──────────────────────────────────────────────
 # Generate
@@ -60,8 +64,17 @@ generate: ## Regenerate proto files
 
 .PHONY: golden-update
 golden-update: ## Update golden test files
-	go test -run TestGoldenFiles -update ./pkg/emit/
-	go test -run TestE2EGolden -update ./pkg/emit/
+	cd codegen && go test -run TestGoldenFiles -update ./pkg/emit/
+	cd codegen && go test -run TestE2EGolden -update ./pkg/emit/
+
+# ──────────────────────────────────────────────
+# Module Management
+# ──────────────────────────────────────────────
+
+.PHONY: tidy
+tidy: ## Run go mod tidy for both modules
+	go mod tidy
+	cd codegen && go mod tidy
 
 # ──────────────────────────────────────────────
 # Release
@@ -77,7 +90,7 @@ release-dry: ## Dry-run goreleaser
 
 .PHONY: clean
 clean: ## Remove build artifacts
-	rm -rf bin/ dist/ coverage.txt
+	rm -rf bin/ dist/ coverage-runtime.txt coverage-codegen.txt
 
 # ──────────────────────────────────────────────
 # CI (composite targets)
