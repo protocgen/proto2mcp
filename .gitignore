@@ -32,4 +32,5 @@ vendor/
 
 # Coverage
 coverage.txt
+coverage-*.txt
 *.coverprofile
