@@ -68,10 +68,16 @@ service.pb.mcp.go
 Install the protoc plugin:
 
 ```bash
-go install github.com/protocgen/proto2mcp/cmd/protoc-gen-proto2mcp@latest
+go install github.com/protocgen/proto2mcp/codegen/cmd/protoc-gen-proto2mcp@latest
 ```
 
-And add the runtime dependency to your Go module:
+Or use the pre-built Docker image (no Go required):
+
+```bash
+docker pull ghcr.io/protocgen/proto2mcp:latest
+```
+
+Then add the runtime dependency to your Go module:
 
 ```bash
 go get github.com/protocgen/proto2mcp/pkg/mcpruntime
@@ -128,8 +134,8 @@ See the [godoc](https://pkg.go.dev/github.com/protocgen/proto2mcp) for full pack
 
 ## Contributing
 
-We welcome contributions! Please open an issue or submit a pull request.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT
+Apache 2.0
