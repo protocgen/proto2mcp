@@ -12,7 +12,7 @@ make ci  # lint + test + build
 
 ### Project Structure
 
-```
+```text
 proto2mcp/
 ├── codegen/                    # protoc plugin (separate Go module)
 │   ├── cmd/protoc-gen-proto2mcp/  # plugin entrypoint

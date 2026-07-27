@@ -75,6 +75,9 @@ Or use the pre-built Docker image (no Go required):
 
 ```bash
 docker pull ghcr.io/protocgen/proto2mcp:latest
+
+# Use as a protoc plugin via docker
+docker run --rm -v $(pwd):/workspace ghcr.io/protocgen/proto2mcp:latest
 ```
 
 Then add the runtime dependency to your Go module:
