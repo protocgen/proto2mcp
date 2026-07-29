@@ -6,23 +6,48 @@ import (
 )
 
 // ToolRequest represents an incoming MCP tool call.
+//
+// MCP 2026-07-28: every request carries _meta with protocol version,
+// client capabilities, and client info. The Meta field passes this
+// through so middleware can inspect it without parsing transport headers.
 type ToolRequest struct {
 	ToolName  string
 	Arguments json.RawMessage
+	// Meta carries the MCP _meta object from the request.
+	// Contains protocol version, client capabilities, and client info.
+	// MCP 2026-07-28: required on every request in the stateless protocol.
+	Meta json.RawMessage `json:"_meta,omitempty"`
 }
 
 // ToolDefinition describes an MCP tool for listing.
+//
+// MCP 2026-07-28: tools/list responses are cacheable. Use CacheTTLMs
+// and CacheScope to control how clients and infrastructure cache the
+// tool list.
 type ToolDefinition struct {
 	Name        string
 	Description string
 	InputSchema json.RawMessage
-	IsResource  bool // V2: true if this is an MCP Resource
+	// Annotations holds tool metadata hints per MCP spec.
+	// Common keys: "readOnlyHint" (bool), "destructiveHint" (bool),
+	// "idempotentHint" (bool), "openWorldHint" (bool).
+	Annotations map[string]any `json:"annotations,omitempty"`
+	// CacheTTLMs is the suggested cache lifetime in milliseconds for
+	// this tool's definition in tools/list responses.
+	// MCP 2026-07-28: enables cacheable list results.
+	// Zero means no caching hint (default).
+	CacheTTLMs int64 `json:"ttlMs,omitempty"`
+	// CacheScope indicates the cache scope: "client" or "global".
+	// MCP 2026-07-28: enables infrastructure-level caching.
+	CacheScope string `json:"cacheScope,omitempty"`
 }
 
 // HandlerFunc is the function signature for tool call handlers.
 type HandlerFunc func(ctx context.Context, req ToolRequest) (*CallToolResult, error)
 
 // CallToolResult wraps the MCP tool call result.
+// Content is a json.RawMessage to allow pass-through of any content
+// structure the MCP SDK expects (text, image, resource embeds).
 type CallToolResult struct {
 	Content json.RawMessage
 	IsError bool
