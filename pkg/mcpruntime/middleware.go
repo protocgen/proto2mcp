@@ -7,15 +7,17 @@ import (
 
 // ToolRequest represents an incoming MCP tool call.
 //
-// MCP 2026-07-28: every request carries _meta with protocol version,
-// client capabilities, and client info. The Meta field passes this
-// through so middleware can inspect it without parsing transport headers.
+// MCP 2026-07-28: every request carries _meta with protocol version
+// and client capabilities. The Meta field passes this through so
+// middleware can inspect it without parsing transport headers.
 type ToolRequest struct {
 	ToolName  string
 	Arguments json.RawMessage
 	// Meta carries the MCP _meta object from the request.
-	// Contains protocol version, client capabilities, and client info.
-	// MCP 2026-07-28: required on every request in the stateless protocol.
+	// Required fields: protocol version, client capabilities.
+	// Optional: client info.
+	// MCP 2026-07-28: present on every request in the stateless protocol.
+	// Validation of _meta contents belongs at the transport boundary.
 	Meta json.RawMessage `json:"_meta,omitempty"`
 }
 
@@ -28,18 +30,14 @@ type ToolDefinition struct {
 	Name        string
 	Description string
 	InputSchema json.RawMessage
+	// Deprecated: Use Annotations with key "resourceHint" instead.
+	// Kept for backward compatibility.
+	IsResource bool `json:"-"`
 	// Annotations holds tool metadata hints per MCP spec.
-	// Common keys: "readOnlyHint" (bool), "destructiveHint" (bool),
+	// Common keys: "readOnlyHint" (bool, default false),
+	// "destructiveHint" (bool, default true when omitted),
 	// "idempotentHint" (bool), "openWorldHint" (bool).
 	Annotations map[string]any `json:"annotations,omitempty"`
-	// CacheTTLMs is the suggested cache lifetime in milliseconds for
-	// this tool's definition in tools/list responses.
-	// MCP 2026-07-28: enables cacheable list results.
-	// Zero means no caching hint (default).
-	CacheTTLMs int64 `json:"ttlMs,omitempty"`
-	// CacheScope indicates the cache scope: "client" or "global".
-	// MCP 2026-07-28: enables infrastructure-level caching.
-	CacheScope string `json:"cacheScope,omitempty"`
 }
 
 // HandlerFunc is the function signature for tool call handlers.

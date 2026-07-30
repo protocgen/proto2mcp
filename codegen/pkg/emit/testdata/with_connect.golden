@@ -23,6 +23,7 @@ func RegisterPatientServiceMCP(registry mcpruntime.Registry, handler PatientServ
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
+		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: PatientService_GetPatientDescription,
 		InputSchema: json.RawMessage(PatientService_GetPatientSchema),
 		Name:        PatientService_GetPatientName,

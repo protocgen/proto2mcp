@@ -51,17 +51,14 @@ func generateRegisterCall(g *jen.Group, t ToolEmitInfo) {
 		jen.Id("InputSchema"): jen.Qual("encoding/json", "RawMessage").Call(jen.Id(schemaConst)),
 	}
 
-	// Emit Annotations map if the tool has metadata hints.
-	var annotations []jen.Code
-	if t.Tool.IsReadOnly {
-		annotations = append(annotations, jen.Lit("readOnlyHint").Op(":").Lit(true))
+	// Emit Annotations map with tool metadata hints.
+	// Per MCP spec, destructiveHint defaults to true when omitted,
+	// so we always emit both to make semantics explicit.
+	annotations := []jen.Code{
+		jen.Lit("readOnlyHint").Op(":").Lit(t.Tool.IsReadOnly),
+		jen.Lit("destructiveHint").Op(":").Lit(t.Tool.IsDestructive),
 	}
-	if t.Tool.IsDestructive {
-		annotations = append(annotations, jen.Lit("destructiveHint").Op(":").Lit(true))
-	}
-	if len(annotations) > 0 {
-		defDict[jen.Id("Annotations")] = jen.Map(jen.String()).Any().Values(annotations...)
-	}
+	defDict[jen.Id("Annotations")] = jen.Map(jen.String()).Any().Values(annotations...)
 
 	def := jen.Qual(runtimePkg, "ToolDefinition").Values(defDict)
 	

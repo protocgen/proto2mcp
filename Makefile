@@ -65,8 +65,8 @@ generate: ## Regenerate proto files
 
 .PHONY: golden-update
 golden-update: ## Update golden test files
-	cd codegen && go test -run TestGoldenFiles -update ./pkg/emit/
-	cd codegen && go test -run TestE2EGolden -update ./pkg/emit/
+	cd codegen && go test -run TestGoldenFiles ./pkg/emit/ -args -update
+	cd codegen && go test -run TestE2EGolden ./pkg/emit/ -args -update
 
 # ──────────────────────────────────────────────
 # Module Management
