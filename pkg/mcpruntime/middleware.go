@@ -6,23 +6,46 @@ import (
 )
 
 // ToolRequest represents an incoming MCP tool call.
+//
+// MCP 2026-07-28: every request carries _meta with protocol version
+// and client capabilities. The Meta field passes this through so
+// middleware can inspect it without parsing transport headers.
 type ToolRequest struct {
 	ToolName  string
 	Arguments json.RawMessage
+	// Meta carries the MCP _meta object from the request.
+	// Required fields: protocol version, client capabilities.
+	// Optional: client info.
+	// MCP 2026-07-28: present on every request in the stateless protocol.
+	// Validation of _meta contents belongs at the transport boundary.
+	Meta json.RawMessage `json:"_meta,omitempty"`
 }
 
 // ToolDefinition describes an MCP tool for listing.
+//
+// MCP 2026-07-28: tools/list responses are cacheable. Use CacheTTLMs
+// and CacheScope to control how clients and infrastructure cache the
+// tool list.
 type ToolDefinition struct {
 	Name        string
 	Description string
 	InputSchema json.RawMessage
-	IsResource  bool // V2: true if this is an MCP Resource
+	// Deprecated: Use Annotations with key "resourceHint" instead.
+	// Kept for backward compatibility.
+	IsResource bool `json:"-"`
+	// Annotations holds tool metadata hints per MCP spec.
+	// Common keys: "readOnlyHint" (bool, default false),
+	// "destructiveHint" (bool, default true when omitted),
+	// "idempotentHint" (bool), "openWorldHint" (bool).
+	Annotations map[string]any `json:"annotations,omitempty"`
 }
 
 // HandlerFunc is the function signature for tool call handlers.
 type HandlerFunc func(ctx context.Context, req ToolRequest) (*CallToolResult, error)
 
 // CallToolResult wraps the MCP tool call result.
+// Content is a json.RawMessage to allow pass-through of any content
+// structure the MCP SDK expects (text, image, resource embeds).
 type CallToolResult struct {
 	Content json.RawMessage
 	IsError bool

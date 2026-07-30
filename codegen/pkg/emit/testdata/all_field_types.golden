@@ -22,6 +22,7 @@ func RegisterComplexServiceMCP(registry mcpruntime.Registry, handler ComplexServ
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
+		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: ComplexService_DoComplexDescription,
 		InputSchema: json.RawMessage(ComplexService_DoComplexSchema),
 		Name:        ComplexService_DoComplexName,

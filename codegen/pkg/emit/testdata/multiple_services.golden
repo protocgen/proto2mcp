@@ -22,6 +22,7 @@ func RegisterServiceAMCP(registry mcpruntime.Registry, handler ServiceAMCPHandle
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
+		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: ServiceA_MethodADescription,
 		InputSchema: json.RawMessage(ServiceA_MethodASchema),
 		Name:        ServiceA_MethodAName,
@@ -51,6 +52,7 @@ func RegisterServiceBMCP(registry mcpruntime.Registry, handler ServiceBMCPHandle
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
+		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: ServiceB_MethodBDescription,
 		InputSchema: json.RawMessage(ServiceB_MethodBSchema),
 		Name:        ServiceB_MethodBName,

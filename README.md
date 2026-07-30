@@ -1,6 +1,8 @@
 # proto2mcp
 
 > Generate type-safe MCP (Model Context Protocol) servers from Protobuf service definitions.
+>
+> Targets **MCP 2026-07-28** (stateless protocol).
 
 ## Why?
 
