@@ -3,7 +3,7 @@ version: 2
 before:
   hooks:
     - go mod tidy
-    - cd codegen && go mod tidy
+    - sh -c "cd codegen && go mod tidy"
 
 builds:
   - id: protoc-gen-proto2mcp
