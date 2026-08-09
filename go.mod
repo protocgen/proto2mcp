@@ -7,7 +7,7 @@ require (
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/metric v1.44.0
 	google.golang.org/protobuf v1.36.11
-	hegel.dev/go/hegel v0.6.22
+	hegel.dev/go/hegel v0.6.23
 )
 
 require (
