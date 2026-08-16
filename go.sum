@@ -30,5 +30,5 @@ google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBN
 google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-hegel.dev/go/hegel v0.6.22 h1:DZ5E5X4i3xz8Z7YK7vj0vLyb6YuUUJXmpjX0NVFbhIk=
-hegel.dev/go/hegel v0.6.22/go.mod h1:SQZksLxpfxeGnV24rgAsAWP1jhMLwbmF1y448HQ1H44=
+hegel.dev/go/hegel v0.6.28 h1:VL1tdf7o13pl1Si80BlT4QWBLTpU4pMlZ4d1kjpkn2A=
+hegel.dev/go/hegel v0.6.28/go.mod h1:SQZksLxpfxeGnV24rgAsAWP1jhMLwbmF1y448HQ1H44=
