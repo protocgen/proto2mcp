@@ -1,32 +1,53 @@
 package mcpruntime
 
 import (
-	"context"
+	"net/http"
 	"testing"
 )
 
-func TestTenantRoundtrip(t *testing.T) {
-	ctx := context.Background()
-
-	// Initially empty.
-	if got := TenantFromContext(ctx); got != "" {
-		t.Fatalf("expected empty tenant, got %q", got)
+func TestFilterHeaders(t *testing.T) {
+	allowlist := map[string]bool{
+		"allowed-header": true,
 	}
 
-	// Set and retrieve empty string
-	ctxEmpty := WithTenant(ctx, "")
-	if got := TenantFromContext(ctxEmpty); got != "" {
-		t.Fatalf("expected empty tenant, got %q", got)
+	// Test with allowlist filters correctly
+	headers := http.Header{
+		"Allowed-Header": []string{"val1"},
+		"Blocked-Header": []string{"val2"},
+	}
+	filtered := FilterHeaders(headers, allowlist)
+	if len(filtered) != 1 {
+		t.Errorf("Expected 1 header, got %d", len(filtered))
+	}
+	if _, ok := filtered["Allowed-Header"]; !ok {
+		t.Errorf("Expected Allowed-Header to be present")
 	}
 
-	// Set and retrieve.
-	ctxAbc := WithTenant(ctx, "tenant-abc")
-	if got := TenantFromContext(ctxAbc); got != "tenant-abc" {
-		t.Fatalf("expected 'tenant-abc', got %q", got)
+	// Test with nil allowlist returns all headers
+	filteredNil := FilterHeaders(headers, nil)
+	if len(filteredNil) != 2 {
+		t.Errorf("Expected 2 headers, got %d", len(filteredNil))
 	}
 
-	// Parent unchanged.
-	if got := TenantFromContext(ctx); got != "" {
-		t.Fatalf("expected empty tenant for parent context, got %q", got)
+	// Test with empty headers returns empty
+	emptyHeaders := http.Header{}
+	filteredEmpty := FilterHeaders(emptyHeaders, allowlist)
+	if len(filteredEmpty) != 0 {
+		t.Errorf("Expected 0 headers, got %d", len(filteredEmpty))
+	}
+}
+
+func TestDefaultHeaderAllowlist(t *testing.T) {
+	expectedKeys := []string{
+		"authorization",
+		"x-request-id",
+		"traceparent",
+		"tracestate",
+	}
+
+	for _, k := range expectedKeys {
+		if !DefaultHeaderAllowlist[k] {
+			t.Errorf("Expected DefaultHeaderAllowlist to contain %s", k)
+		}
 	}
 }

@@ -3,6 +3,7 @@ package mcpruntime
 import (
 	"context"
 	"net/http"
+	"strings"
 )
 
 type contextKey string
@@ -47,4 +48,28 @@ func HeadersFromContext(ctx context.Context) http.Header {
 		return val
 	}
 	return nil
+}
+
+// DefaultHeaderAllowlist is the default set of headers propagated to
+// ConnectRPC backends when no explicit allowlist is configured.
+var DefaultHeaderAllowlist = map[string]bool{
+	"authorization": true,
+	"x-request-id":  true,
+	"traceparent":   true,
+	"tracestate":    true,
+}
+
+// FilterHeaders returns a new http.Header containing only the allowed headers.
+// If allowlist is nil, returns the input headers unchanged.
+func FilterHeaders(headers http.Header, allowlist map[string]bool) http.Header {
+	if allowlist == nil {
+		return headers
+	}
+	filtered := make(http.Header)
+	for k, v := range headers {
+		if allowlist[strings.ToLower(k)] {
+			filtered[k] = v
+		}
+	}
+	return filtered
 }
