@@ -24,10 +24,9 @@ type ToolRequest struct {
 	// Middleware can inspect Annotations (e.g., readOnlyHint, destructiveHint)
 	// without a separate lookup. Nil when no ToolRegistry is configured.
 	Definition *ToolDefinition `json:"-"`
-	// ResourceKeys maps resource key field names to their string values,
-	// extracted from Arguments before the middleware chain runs.
-	// Only populated for fields annotated with resource_key = true
-	// in the proto definition. Nil when no resource keys are configured.
+	// ResourceKeys are extracted resource identifiers from the tool arguments.
+	// SECURITY: These values are untrusted agent input — validate format
+	// before using in authorization decisions.
 	ResourceKeys map[string]string `json:"-"`
 }
 

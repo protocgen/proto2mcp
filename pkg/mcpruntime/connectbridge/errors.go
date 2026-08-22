@@ -10,17 +10,22 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// MapConnectError maps a ConnectRPC error to an MCP CallToolResult.
-//
-// For InvalidArgument errors, it extracts field-level validation details
-// from the error's detail messages (e.g., protovalidate violations) so
-// that LLMs can self-correct. This is critical for agent reliability —
-// a generic "invalid argument" message gives the LLM no signal about
-// what to fix.
-//
-// Error messages are sanitized to never leak internal stack traces,
-// backend addresses, or sensitive implementation details.
+// ErrorMapper maps ConnectRPC errors to MCP CallToolResults.
+type ErrorMapper struct {
+	// VerboseErrors controls whether field-level validation details
+	// are included in error responses. Set to true during development
+	// for LLM self-correction, false in production to prevent schema leakage.
+	VerboseErrors bool
+}
+
+// MapConnectError maps a ConnectRPC error using default settings (verbose errors enabled).
+// For production, use ErrorMapper{VerboseErrors: false}.MapConnectError instead.
 func MapConnectError(err error) *mcpruntime.CallToolResult {
+	return (&ErrorMapper{VerboseErrors: true}).MapConnectError(err)
+}
+
+// MapConnectError maps a ConnectRPC error to an MCP-compatible CallToolResult.
+func (e *ErrorMapper) MapConnectError(err error) *mcpruntime.CallToolResult {
 	if err == nil {
 		return nil
 	}
@@ -33,7 +38,10 @@ func MapConnectError(err error) *mcpruntime.CallToolResult {
 
 	switch connectErr.Code() {
 	case connect.CodeInvalidArgument:
-		return mapInvalidArgument(connectErr)
+		if e.VerboseErrors {
+			return mapInvalidArgument(connectErr)
+		}
+		return mcpruntime.NewErrorResultWithDetails("invalid input", "INVALID_ARGUMENT", nil)
 	case connect.CodeNotFound:
 		return mcpruntime.NewErrorResultWithDetails("resource not found", "NOT_FOUND", nil)
 	case connect.CodePermissionDenied:

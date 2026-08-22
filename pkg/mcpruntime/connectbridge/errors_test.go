@@ -225,3 +225,20 @@ func TestAsConnectError_DeeplyWrapped(t *testing.T) {
 		t.Fatalf("expected CodeInvalidArgument, got %v", got.Code())
 	}
 }
+
+func TestErrorMapper_NonVerbose(t *testing.T) {
+	mapper := &ErrorMapper{VerboseErrors: false}
+	err := connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("field 'x' is too short"))
+	result := mapper.MapConnectError(err)
+	// Should NOT contain field-level details
+	assertErrorResult(t, result, "INVALID_ARGUMENT", "invalid input")
+}
+
+func TestErrorMapper_Verbose(t *testing.T) {
+	mapper := &ErrorMapper{VerboseErrors: true}
+	err := connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("bad input"))
+	result := mapper.MapConnectError(err)
+	if result == nil {
+		t.Error("expected non-nil result")
+	}
+}

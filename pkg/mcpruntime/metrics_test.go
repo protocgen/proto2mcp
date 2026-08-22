@@ -19,15 +19,29 @@ func TestMetrics_NewMetrics(t *testing.T) {
 	if metrics == nil {
 		t.Fatal("expected non-nil metrics")
 	}
+}
+
+func TestMetrics_NewBoundedMetrics(t *testing.T) {
+	provider := noop.NewMeterProvider()
+	meter := provider.Meter("test")
+
+	metrics, err := NewBoundedMetrics(meter, []string{"my-tool"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if metrics == nil {
+		t.Fatal("expected non-nil metrics")
+	}
 
 	// Verify no panics on RecordToolCall
 	metrics.RecordToolCall(context.Background(), "my-tool", "tenant-123", "success", 100*time.Millisecond)
+	metrics.RecordToolCall(context.Background(), "unknown-tool", "tenant-123", "success", 100*time.Millisecond)
 }
 
 func TestMetrics_RecordToolCall_MultipleCalls(t *testing.T) {
 	provider := noop.NewMeterProvider()
 	meter := provider.Meter("test")
-	metrics, _ := NewMetrics(meter)
+	metrics, _ := NewBoundedMetrics(meter, []string{"tool1", "tool2"})
 
 	// Multiple calls to ensure it doesn't panic
 	metrics.RecordToolCall(context.Background(), "tool1", "tenant1", "success", 10*time.Millisecond)

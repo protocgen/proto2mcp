@@ -2,6 +2,9 @@ package mcpruntime
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -98,5 +101,56 @@ func TestWithHeaderAllowlist(t *testing.T) {
 	defaultCfg := NewConfig()
 	if defaultCfg.HeaderAllowlist() != nil {
 		t.Errorf("expected default config to have nil allowlist")
+	}
+}
+
+func TestWithResourceKeyValidator(t *testing.T) {
+	validator := func(key, value string) error {
+		if value == ".." {
+			return context.DeadlineExceeded
+		}
+		return nil
+	}
+	c := NewConfig(WithResourceKeyValidator(validator))
+	if c.resourceKeyValidator == nil {
+		t.Error("expected validator to be set")
+	}
+}
+
+func TestResourceKeyValidator_Integration(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:         "TestTool",
+		ResourceKeys: []string{"safe_id", "bad_id"},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		// Verify bad_id was filtered out
+		if _, ok := req.ResourceKeys["bad_id"]; ok {
+			t.Error("bad_id should have been filtered by validator")
+		}
+		if v, ok := req.ResourceKeys["safe_id"]; !ok || v != "abc123" {
+			t.Errorf("expected safe_id=abc123, got %q", v)
+		}
+		return &CallToolResult{Content: json.RawMessage(`{}`)}, nil
+	})
+
+	config := NewConfig(
+		WithToolRegistry(reg),
+		WithResourceKeyValidator(func(key, value string) error {
+			if strings.Contains(value, "..") {
+				return fmt.Errorf("path traversal")
+			}
+			return nil
+		}),
+	)
+
+	handler, _ := reg.Lookup("TestTool")
+	wrapped := config.WrapHandler("TestTool", handler)
+
+	_, err := wrapped(context.Background(), ToolRequest{
+		ToolName:  "TestTool",
+		Arguments: json.RawMessage(`{"safe_id": "abc123", "bad_id": "../../etc/passwd"}`),
+	})
+	if err != nil {
+		t.Fatalf("handler failed: %v", err)
 	}
 }
