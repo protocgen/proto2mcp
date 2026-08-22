@@ -18,6 +18,7 @@ type Config struct {
 	middleware      []Middleware
 	tenantExtractor TenantExtractorFunc
 	toolNamer       ToolNamerFunc
+	registry        *ToolRegistry
 }
 
 // Option configures a Config.
@@ -55,13 +56,24 @@ func WithToolNamer(fn ToolNamerFunc) Option {
 	}
 }
 
+// WithToolRegistry configures the registry for ToolDefinition injection.
+// When set, WrapHandler populates ToolRequest.Definition before the
+// middleware chain runs, enabling interceptors to inspect tool metadata
+// (e.g., Annotations with readOnlyHint, destructiveHint).
+func WithToolRegistry(r *ToolRegistry) Option {
+	return func(c *Config) {
+		c.registry = r
+	}
+}
+
 // WrapHandler wraps a handler with the configured middleware chain,
 // tenant extraction, and panic recovery. The execution order is:
 //
 //  1. Panic recovery (outermost)
 //  2. Tenant extraction (if configured)
-//  3. Middleware chain (in registration order)
-//  4. Handler (innermost)
+//  3. Definition injection (if registry configured)
+//  4. Middleware chain (in registration order)
+//  5. Handler (innermost)
 func (c *Config) WrapHandler(toolName string, handler HandlerFunc) HandlerFunc {
 	// Build middleware chain from innermost to outermost.
 	chain := handler
@@ -70,6 +82,18 @@ func (c *Config) WrapHandler(toolName string, handler HandlerFunc) HandlerFunc {
 		next := chain
 		chain = func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
 			return mw.HandleToolCall(ctx, req, next)
+		}
+	}
+
+	// Wrap with definition injection if registry is configured.
+	if c.registry != nil {
+		inner := chain
+		reg := c.registry
+		chain = func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+			if def, ok := reg.LookupDefinition(toolName); ok {
+				req.Definition = &def
+			}
+			return inner(ctx, req)
 		}
 	}
 

@@ -19,6 +19,11 @@ type ToolRequest struct {
 	// MCP 2026-07-28: present on every request in the stateless protocol.
 	// Validation of _meta contents belongs at the transport boundary.
 	Meta json.RawMessage `json:"_meta,omitempty"`
+	// Definition holds the tool's metadata, populated before the middleware
+	// chain runs when a ToolRegistry is configured via WithToolRegistry.
+	// Middleware can inspect Annotations (e.g., readOnlyHint, destructiveHint)
+	// without a separate lookup. Nil when no ToolRegistry is configured.
+	Definition *ToolDefinition `json:"-"`
 }
 
 // ToolDefinition describes an MCP tool for listing.

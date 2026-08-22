@@ -551,3 +551,98 @@ func TestMarshalToolResult_NilMessage(t *testing.T) {
 		t.Fatalf("expected empty JSON object, got %s", result.Content)
 	}
 }
+
+func TestWrapHandler_DefinitionInjection(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:        "GetPatient",
+		Description: "Get a patient",
+		InputSchema: json.RawMessage(`{}`),
+		Annotations: map[string]any{
+			"readOnlyHint":    true,
+			"destructiveHint": false,
+		},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	var gotDef *ToolDefinition
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotDef = req.Definition
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("GetPatient", handler)
+	_, err := wrapped(context.Background(), ToolRequest{ToolName: "GetPatient"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotDef == nil {
+		t.Fatal("expected Definition to be populated in middleware")
+	}
+	if gotDef.Name != "GetPatient" {
+		t.Fatalf("expected Definition.Name='GetPatient', got %q", gotDef.Name)
+	}
+	if gotDef.Annotations["readOnlyHint"] != true {
+		t.Fatalf("expected readOnlyHint=true, got %v", gotDef.Annotations["readOnlyHint"])
+	}
+}
+
+func TestWrapHandler_DefinitionInjection_NoRegistry(t *testing.T) {
+	var gotDef *ToolDefinition
+	cfg := NewConfig(
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotDef = req.Definition
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("GetPatient", handler)
+	_, _ = wrapped(context.Background(), ToolRequest{ToolName: "GetPatient"})
+	if gotDef != nil {
+		t.Fatal("expected Definition to be nil when no registry configured")
+	}
+}
+
+func TestWrapHandler_DefinitionInjection_UnknownTool(t *testing.T) {
+	reg := NewToolRegistry()
+
+	var gotDef *ToolDefinition
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotDef = req.Definition
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("NonexistentTool", handler)
+	_, err := wrapped(context.Background(), ToolRequest{ToolName: "NonexistentTool"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotDef != nil {
+		t.Fatal("expected Definition to be nil for unknown tool")
+	}
+}

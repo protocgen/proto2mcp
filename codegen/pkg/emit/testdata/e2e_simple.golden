@@ -24,6 +24,9 @@ const PatientService_ListPatientsDescription = ""
 var PatientService_ListPatientsSchema = []byte("{\"type\":\"object\",\"properties\":{\"page_size\":{\"type\":\"integer\"}},\"additionalProperties\":false}")
 
 func RegisterPatientServiceMCP(registry mcpruntime.Registry, handler PatientServiceMCPHandler, opts ...mcpruntime.Option) {
+	if tr, ok := registry.(*mcpruntime.ToolRegistry); ok {
+		opts = append([]mcpruntime.Option{mcpruntime.WithToolRegistry(tr)}, opts...)
+	}
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{

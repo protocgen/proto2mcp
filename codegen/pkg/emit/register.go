@@ -6,20 +6,14 @@ import (
 
 // generateRegisterFunc generates:
 //
-//	func Register<ServiceName>MCP(registry *mcpruntime.ToolRegistry, handler <ServiceName>MCPHandler, opts ...mcpruntime.Option) {
+//	func Register<ServiceName>MCP(registry mcpruntime.Registry, handler <ServiceName>MCPHandler, opts ...mcpruntime.Option) {
+//	    // Auto-configure WithToolRegistry when using *ToolRegistry.
+//	    if tr, ok := registry.(*mcpruntime.ToolRegistry); ok {
+//	        opts = append([]mcpruntime.Option{mcpruntime.WithToolRegistry(tr)}, opts...)
+//	    }
 //	    cfg := mcpruntime.NewConfig(opts...)
 //	    // For each tool:
-//	    registry.Register(mcpruntime.ToolDefinition{...}, cfg.WrapHandler("toolName", func(ctx context.Context, req mcpruntime.ToolRequest) (*mcpruntime.CallToolResult, error) {
-//	        var input InputType
-//	        if err := mcpruntime.UnmarshalToolInput(req, &input); err != nil {
-//	            return mcpruntime.InvalidParamsError(err), nil
-//	        }
-//	        resp, err := handler.MethodName(ctx, &input)
-//	        if err != nil {
-//	            return mcpruntime.MapConnectError(err), nil
-//	        }
-//	        return mcpruntime.MarshalToolResult(resp)
-//	    }))
+//	    registry.Register(mcpruntime.ToolDefinition{...}, cfg.WrapHandler("toolName", handlerClosure))
 //	}
 func generateRegisterFunc(f *jen.File, info ServiceEmitInfo) {
 	funcName := "Register" + info.Service.Name + "MCP"
@@ -30,6 +24,19 @@ func generateRegisterFunc(f *jen.File, info ServiceEmitInfo) {
 		jen.Id("handler").Id(handlerName),
 		jen.Id("opts").Op("...").Qual(runtimePkg, "Option"),
 	).BlockFunc(func(g *jen.Group) {
+		// Auto-detect *ToolRegistry for ToolDefinition injection.
+		g.If(
+			jen.List(jen.Id("tr"), jen.Id("ok")).Op(":=").Id("registry").Assert(jen.Op("*").Qual(runtimePkg, "ToolRegistry")),
+			jen.Id("ok"),
+		).Block(
+			jen.Id("opts").Op("=").Append(
+				jen.Index().Qual(runtimePkg, "Option").Values(
+					jen.Qual(runtimePkg, "WithToolRegistry").Call(jen.Id("tr")),
+				),
+				jen.Id("opts").Op("..."),
+			),
+		)
+
 		if len(info.Tools) > 0 {
 			g.Id("cfg").Op(":=").Qual(runtimePkg, "NewConfig").Call(jen.Id("opts").Op("..."))
 			g.Line()
