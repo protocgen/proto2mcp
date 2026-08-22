@@ -15,13 +15,37 @@ func DefaultToolNamer(serviceName, methodName string) string {
 	return fmt.Sprintf("%s_%s", serviceName, methodName)
 }
 
+// ResourceKeyValidatorFunc validates a resource key value.
+// Return an error to reject the value. The key parameter is the field name,
+// value is the extracted string from agent arguments.
+type ResourceKeyValidatorFunc func(key, value string) error
+
+// WithResourceKeyValidator sets a validation function for resource key values.
+// The validator runs during resource key extraction in WrapHandler.
+// Invalid values are silently dropped from ResourceKeys.
+//
+// Example: reject values with path traversal attempts:
+//
+//	WithResourceKeyValidator(func(key, value string) error {
+//	    if strings.Contains(value, "..") || strings.Contains(value, "/") {
+//	        return fmt.Errorf("invalid character in %s", key)
+//	    }
+//	    return nil
+//	})
+func WithResourceKeyValidator(fn ResourceKeyValidatorFunc) Option {
+	return func(c *Config) {
+		c.resourceKeyValidator = fn
+	}
+}
+
 // Config holds the configuration for a registered service.
 type Config struct {
-	middleware      []Middleware
-	tenantExtractor TenantExtractorFunc
-	toolNamer       ToolNamerFunc
-	registry        *ToolRegistry
-	headerAllowlist map[string]bool
+	middleware           []Middleware
+	tenantExtractor      TenantExtractorFunc
+	toolNamer            ToolNamerFunc
+	registry             *ToolRegistry
+	headerAllowlist      map[string]bool
+	resourceKeyValidator ResourceKeyValidatorFunc
 }
 
 // Option configures a Config.
@@ -120,6 +144,11 @@ func (c *Config) WrapHandler(toolName string, handler HandlerFunc) HandlerFunc {
 			if def, ok := reg.LookupDefinition(toolName); ok {
 				req.Definition = &def
 				// Extract resource keys from arguments.
+				// SECURITY: ResourceKeys values are UNTRUSTED agent input.
+				// Middleware using these for authorization decisions MUST validate
+				// the format (e.g., UUID pattern, alphanumeric) before policy evaluation.
+				// Do NOT use resource key values in path construction, SQL queries,
+				// or policy engine paths without validation.
 				if len(def.ResourceKeys) > 0 && len(req.Arguments) > 0 {
 					var args map[string]json.RawMessage
 					if json.Unmarshal(req.Arguments, &args) == nil {
@@ -128,6 +157,11 @@ func (c *Config) WrapHandler(toolName string, handler HandlerFunc) HandlerFunc {
 							if raw, ok := args[k]; ok && string(raw) != "null" {
 								var val string
 								if json.Unmarshal(raw, &val) == nil {
+									if c.resourceKeyValidator != nil {
+										if err := c.resourceKeyValidator(k, val); err != nil {
+											continue // skip invalid values
+										}
+									}
 									keys[k] = val
 								}
 							}
