@@ -202,6 +202,22 @@ func extractMethod(method *protogen.Method, svcName, svcPrefix string) *ToolIR {
 		tool.IsReadOnly = mOpts.ReadOnly
 		tool.IsDestructive = mOpts.Destructive
 		tool.Version = mOpts.Version
+
+		if len(mOpts.Steps) > 0 {
+			tool.SubTools = mOpts.Steps
+			tool.MacroType = MacroTypeSequential
+
+			// Per stakeholder consensus: warn on parallel, don't silently ignore
+			for _, step := range mOpts.Steps {
+				if step.Parallel {
+					tool.Warnings = append(tool.Warnings, Warning{
+						Severity: WarnWarning,
+						Method:   tool.Name,
+						Message:  fmt.Sprintf("parallel macro step %q is not yet supported; step will run sequentially", step.ToolName),
+					})
+				}
+			}
+		}
 	}
 
 	if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
@@ -244,6 +260,7 @@ type methodOptions struct {
 	Destructive         bool
 	Version             int32
 	IsDeprecated        bool
+	Steps               []ToolRef
 }
 
 type serviceOptions struct {
@@ -288,6 +305,31 @@ func readMethodOptions(method *protogen.Method) *methodOptions {
 					mOpts.Version = int32(subV.Int())
 				case 9:
 					mOpts.IsDeprecated = subV.Bool()
+				case 15: // MacroDefinition message
+					macroMsg := subV.Message()
+					macroMsg.Range(func(macroFd protoreflect.FieldDescriptor, macroV protoreflect.Value) bool {
+						switch macroFd.Number() {
+						case 1: // repeated MacroStep steps
+							stepList := macroV.List()
+							for i := 0; i < stepList.Len(); i++ {
+								stepMsg := stepList.Get(i).Message()
+								step := ToolRef{}
+								stepMsg.Range(func(stepFd protoreflect.FieldDescriptor, stepV protoreflect.Value) bool {
+									switch stepFd.Number() {
+									case 1: // tool name
+										step.ToolName = stepV.String()
+									case 2: // parallel
+										step.Parallel = stepV.Bool()
+									case 3: // output_key
+										step.OutputKey = stepV.String()
+									}
+									return true
+								})
+								mOpts.Steps = append(mOpts.Steps, step)
+							}
+						}
+						return true
+					})
 				}
 				return true
 			})
