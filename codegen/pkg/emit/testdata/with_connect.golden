@@ -54,7 +54,8 @@ func PatientServiceForwardToConnect(client PatientServiceServiceClient) PatientS
 func (f *connectForwarderPatientService) GetPatient(ctx context.Context, req *v1.GetPatientRequest) (*v1.GetPatientResponse, error) {
 	connectReq := connect.NewRequest(req)
 	if headers := mcpruntime.HeadersFromContext(ctx); headers != nil {
-		for k, vals := range headers {
+		filtered := mcpruntime.FilterHeaders(headers, mcpruntime.DefaultHeaderAllowlist)
+		for k, vals := range filtered {
 			for _, v := range vals {
 				connectReq.Header().Add(k, v)
 			}

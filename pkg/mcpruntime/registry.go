@@ -1,6 +1,7 @@
 package mcpruntime
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 )
@@ -120,6 +121,22 @@ func (r *ToolRegistry) Tools() []ToolDefinition {
 		defs = append(defs, def)
 	}
 	return defs
+}
+
+// FilteredTools returns tool definitions filtered through the provided
+// middleware chain's DiscoveryInterceptors. Use this for MCP tools/list
+// responses to ensure agents only see tools they're authorized to use.
+//
+// Each middleware's FilterTools is applied sequentially — the output of
+// one becomes the input to the next, matching ChainMiddleware behavior.
+//
+// If no middleware is provided, behaves identically to Tools().
+func (r *ToolRegistry) FilteredTools(ctx context.Context, middleware ...Middleware) []ToolDefinition {
+	tools := r.Tools()
+	for _, mw := range middleware {
+		tools = mw.FilterTools(ctx, tools)
+	}
+	return tools
 }
 
 // RegisterMacro registers a macro-tool that composes sub-tools.

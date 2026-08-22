@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // ToolNamerFunc generates MCP tool names from service and method names.
@@ -20,6 +21,7 @@ type Config struct {
 	tenantExtractor TenantExtractorFunc
 	toolNamer       ToolNamerFunc
 	registry        *ToolRegistry
+	headerAllowlist map[string]bool
 }
 
 // Option configures a Config.
@@ -65,6 +67,29 @@ func WithToolRegistry(r *ToolRegistry) Option {
 	return func(c *Config) {
 		c.registry = r
 	}
+}
+
+// WithHeaderAllowlist sets the allowed headers for ConnectRPC forwarding.
+// Only headers in this list will be propagated from context to outgoing
+// ConnectRPC requests. If not set, a sensible default is used:
+// Authorization, X-Request-ID, traceparent, tracestate.
+//
+// SECURITY: Without an allowlist, all headers from context are forwarded,
+// which may leak cookies, internal service mesh headers, or other
+// sensitive data to the backend.
+func WithHeaderAllowlist(headers ...string) Option {
+	return func(c *Config) {
+		c.headerAllowlist = make(map[string]bool, len(headers))
+		for _, h := range headers {
+			c.headerAllowlist[strings.ToLower(h)] = true
+		}
+	}
+}
+
+// HeaderAllowlist returns the configured header allowlist.
+// Returns nil if no allowlist is configured (all headers forwarded).
+func (c *Config) HeaderAllowlist() map[string]bool {
+	return c.headerAllowlist
 }
 
 // WrapHandler wraps a handler with the configured middleware chain,

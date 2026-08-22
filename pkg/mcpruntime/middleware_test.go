@@ -937,3 +937,114 @@ func TestToolRegistry_LookupDefinition_AnnotationsDefensiveCopy(t *testing.T) {
 		t.Fatal("defensive copy failed: injected key appeared in internal state")
 	}
 }
+
+func TestFilteredTools_NoMiddleware(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{Name: "tool1"}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return nil, nil
+	})
+	reg.Register(ToolDefinition{Name: "tool2"}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return nil, nil
+	})
+
+	tools := reg.FilteredTools(context.Background())
+	if len(tools) != 2 {
+		t.Fatalf("expected 2 tools, got %d", len(tools))
+	}
+}
+
+func TestFilteredTools_WithDiscoveryInterceptor(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{Name: "GetPatient"}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return nil, nil
+	})
+	reg.Register(ToolDefinition{Name: "DeletePatient"}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return nil, nil
+	})
+	reg.Register(ToolDefinition{Name: "ListPatients"}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return nil, nil
+	})
+
+	// Filter that only allows read tools.
+	readOnlyFilter := DiscoveryInterceptorFunc(func(ctx context.Context, tools []ToolDefinition) []ToolDefinition {
+		var filtered []ToolDefinition
+		for _, t := range tools {
+			if t.Name != "DeletePatient" {
+				filtered = append(filtered, t)
+			}
+		}
+		return filtered
+	})
+
+	tools := reg.FilteredTools(context.Background(), readOnlyFilter)
+	if len(tools) != 2 {
+		t.Fatalf("expected 2 tools, got %d", len(tools))
+	}
+	for _, tool := range tools {
+		if tool.Name == "DeletePatient" {
+			t.Error("DeletePatient should have been filtered out")
+		}
+	}
+}
+
+func TestFilteredTools_ChainedMiddleware(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{Name: "A"}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return nil, nil
+	})
+	reg.Register(ToolDefinition{Name: "B"}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return nil, nil
+	})
+	reg.Register(ToolDefinition{Name: "C"}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return nil, nil
+	})
+
+	// First filter removes A.
+	filterA := DiscoveryInterceptorFunc(func(ctx context.Context, tools []ToolDefinition) []ToolDefinition {
+		var filtered []ToolDefinition
+		for _, t := range tools {
+			if t.Name != "A" {
+				filtered = append(filtered, t)
+			}
+		}
+		return filtered
+	})
+	// Second filter removes B.
+	filterB := DiscoveryInterceptorFunc(func(ctx context.Context, tools []ToolDefinition) []ToolDefinition {
+		var filtered []ToolDefinition
+		for _, t := range tools {
+			if t.Name != "B" {
+				filtered = append(filtered, t)
+			}
+		}
+		return filtered
+	})
+
+	tools := reg.FilteredTools(context.Background(), filterA, filterB)
+	if len(tools) != 1 {
+		t.Fatalf("expected 1 tool, got %d", len(tools))
+	}
+	if tools[0].Name != "C" {
+		t.Errorf("expected tool C, got %s", tools[0].Name)
+	}
+}
+
+func TestFilteredTools_DefensiveCopy(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:        "tool1",
+		Annotations: map[string]any{"readOnlyHint": true},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return nil, nil
+	})
+
+	// Get filtered tools and mutate annotations.
+	tools := reg.FilteredTools(context.Background())
+	tools[0].Annotations["injected"] = true
+
+	// Verify original is unchanged.
+	tools2 := reg.FilteredTools(context.Background())
+	if _, ok := tools2[0].Annotations["injected"]; ok {
+		t.Error("FilteredTools should return defensive copies")
+	}
+}

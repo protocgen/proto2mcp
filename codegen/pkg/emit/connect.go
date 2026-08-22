@@ -55,8 +55,9 @@ func generateConnectForwarder(f *jen.File, info ServiceEmitInfo) {
 				jen.Id("headers").Op(":=").Qual(mcpRuntimePkg, "HeadersFromContext").Call(jen.Id("ctx")),
 				jen.Id("headers").Op("!=").Nil(),
 			).Block(
+				jen.Id("filtered").Op(":=").Qual(mcpRuntimePkg, "FilterHeaders").Call(jen.Id("headers"), jen.Qual(mcpRuntimePkg, "DefaultHeaderAllowlist")),
 				jen.For(
-					jen.List(jen.Id("k"), jen.Id("vals")).Op(":=").Range().Id("headers"),
+					jen.List(jen.Id("k"), jen.Id("vals")).Op(":=").Range().Id("filtered"),
 				).Block(
 					jen.For(
 						jen.List(jen.Id("_"), jen.Id("v")).Op(":=").Range().Id("vals"),

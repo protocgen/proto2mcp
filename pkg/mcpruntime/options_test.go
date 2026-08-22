@@ -78,3 +78,25 @@ func TestWithToolRegistry(t *testing.T) {
 		t.Fatal("expected nil registry by default")
 	}
 }
+
+func TestWithHeaderAllowlist(t *testing.T) {
+	cfg := NewConfig(WithHeaderAllowlist("Allowed-Header", "another-header"))
+
+	allowlist := cfg.HeaderAllowlist()
+	if len(allowlist) != 2 {
+		t.Fatalf("expected 2 headers in allowlist, got %d", len(allowlist))
+	}
+
+	if !allowlist["allowed-header"] {
+		t.Errorf("expected 'allowed-header' to be in allowlist (lowercased)")
+	}
+	if !allowlist["another-header"] {
+		t.Errorf("expected 'another-header' to be in allowlist")
+	}
+
+	// Default config should have nil allowlist
+	defaultCfg := NewConfig()
+	if defaultCfg.HeaderAllowlist() != nil {
+		t.Errorf("expected default config to have nil allowlist")
+	}
+}
