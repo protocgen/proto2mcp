@@ -1,0 +1,26 @@
+# Local-only hooks — no private remotes (OSS repo).
+
+pre-commit:
+  parallel: true
+  commands:
+    gofmt:
+      glob: "*.go"
+      run: gofmt -l {staged_files} | grep . && exit 1 || true
+
+    go-vet:
+      glob: "*.go"
+      run: |
+        go vet ./...
+        cd codegen && go vet ./...
+
+    editorconfig:
+      run: editorconfig-checker
+
+    yaml-lint:
+      glob: "*.{yaml,yml}"
+      run: yamllint {staged_files}
+
+pre-push:
+  commands:
+    tests:
+      run: make test

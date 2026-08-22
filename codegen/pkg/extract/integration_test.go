@@ -14,9 +14,9 @@ import (
 
 // --- Helpers ---
 
-func strPtr(s string) *string    { return &s }
-func int32Ptr(i int32) *int32    { return &i }
-func boolPtr(b bool) *bool       { return &b }
+func strPtr(s string) *string { return &s }
+func int32Ptr(i int32) *int32 { return &i }
+func boolPtr(b bool) *bool    { return &b }
 
 func typePtr(t descriptorpb.FieldDescriptorProto_Type) *descriptorpb.FieldDescriptorProto_Type {
 	return &t
@@ -203,20 +203,20 @@ func TestIntegration_FromPlugin_StreamingMethod(t *testing.T) {
 						Name:            strPtr("ServerStream"),
 						InputType:       strPtr(".test.v1.StreamReq"),
 						OutputType:      strPtr(".test.v1.StreamResp"),
-						ServerStreaming:  boolPtr(true),
+						ServerStreaming: boolPtr(true),
 					},
 					{
 						Name:            strPtr("ClientStream"),
 						InputType:       strPtr(".test.v1.StreamReq"),
 						OutputType:      strPtr(".test.v1.StreamResp"),
-						ClientStreaming:  boolPtr(true),
+						ClientStreaming: boolPtr(true),
 					},
 					{
 						Name:            strPtr("BidiStream"),
 						InputType:       strPtr(".test.v1.StreamReq"),
 						OutputType:      strPtr(".test.v1.StreamResp"),
-						ClientStreaming:  boolPtr(true),
-						ServerStreaming:  boolPtr(true),
+						ClientStreaming: boolPtr(true),
+						ServerStreaming: boolPtr(true),
 					},
 				},
 			},

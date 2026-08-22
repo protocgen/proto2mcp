@@ -58,4 +58,3 @@ func TestWithToolNamer(t *testing.T) {
 		t.Fatalf("expected 'Foo.Bar', got %q", got)
 	}
 }
-

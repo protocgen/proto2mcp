@@ -16,7 +16,7 @@ func buildTestPlugin(t *testing.T, files ...*descriptorpb.FileDescriptorProto) *
 		req.ProtoFile = append(req.ProtoFile, fd)
 		req.FileToGenerate = append(req.FileToGenerate, fd.GetName())
 	}
-	
+
 	plugin, err := protogen.Options{}.New(req)
 	if err != nil {
 		t.Fatalf("failed to create protogen.Plugin: %v", err)

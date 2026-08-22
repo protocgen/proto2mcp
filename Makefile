@@ -93,12 +93,16 @@ release-dry: ## Dry-run goreleaser
 clean: ## Remove build artifacts
 	rm -rf bin/ dist/ coverage-runtime.txt coverage-codegen.txt
 
+.PHONY: hygiene
+hygiene: ## Run file hygiene checks (editorconfig)
+	editorconfig-checker
+
 # ──────────────────────────────────────────────
 # CI (composite targets)
 # ──────────────────────────────────────────────
 
 .PHONY: ci
-ci: lint test build ## Run full CI pipeline locally (lint + test + build)
+ci: lint test build hygiene ## Run full CI pipeline locally (lint + test + build + hygiene)
 
 # ──────────────────────────────────────────────
 # Help

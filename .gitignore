@@ -34,3 +34,14 @@ vendor/
 coverage.txt
 coverage-*.txt
 *.coverprofile
+
+# Nix / direnv
+.direnv/
+result
+
+# Lefthook
+.lefthook-remotes/
+
+# Temporary build dirs
+.tmp/
+.tmp_gopath/

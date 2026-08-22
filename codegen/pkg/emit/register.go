@@ -44,7 +44,7 @@ func generateRegisterCall(g *jen.Group, t ToolEmitInfo) {
 	nameConst := t.Tool.Name + "Name"
 	descConst := t.Tool.Name + "Description"
 	schemaConst := t.Tool.Name + "Schema"
-	
+
 	defDict := jen.Dict{
 		jen.Id("Name"):        jen.Id(nameConst),
 		jen.Id("Description"): jen.Id(descConst),
@@ -61,7 +61,7 @@ func generateRegisterCall(g *jen.Group, t ToolEmitInfo) {
 	defDict[jen.Id("Annotations")] = jen.Map(jen.String()).Any().Values(annotations...)
 
 	def := jen.Qual(runtimePkg, "ToolDefinition").Values(defDict)
-	
+
 	handlerClosure := jen.Func().Params(
 		jen.Id("ctx").Qual("context", "Context"),
 		jen.Id("req").Qual(runtimePkg, "ToolRequest"),

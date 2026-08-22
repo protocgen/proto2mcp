@@ -130,4 +130,3 @@ func TestExtractConstraints_CELRules(t *testing.T) {
 		t.Errorf("expected notes to contain CEL rule without message as fallback, got %q", notes)
 	}
 }
-

@@ -18,16 +18,16 @@ func generateConnectForwarder(f *jen.File, info ServiceEmitInfo) {
 	if clientTypeName == "" {
 		clientTypeName = info.Service.Name + "ServiceClient"
 	}
-	
+
 	// Assume Connect interface is in the same package as GoImportPath
 	clientInterface := jen.Qual(info.GoImportPath, clientTypeName)
-	
+
 	structName := "connectForwarder" + info.Service.Name
-	
+
 	f.Type().Id(structName).Struct(
 		jen.Id("client").Add(clientInterface),
 	)
-	
+
 	f.Commentf("%s creates a %s that forwards MCP tool calls to a ConnectRPC client.", funcName, handlerName)
 	f.Func().Id(funcName).Params(
 		jen.Id("client").Add(clientInterface),
@@ -36,7 +36,7 @@ func generateConnectForwarder(f *jen.File, info ServiceEmitInfo) {
 			jen.Id("client"): jen.Id("client"),
 		})),
 	)
-	
+
 	for _, t := range info.Tools {
 		mcpRuntimePkg := "github.com/protocgen/proto2mcp/pkg/mcpruntime"
 

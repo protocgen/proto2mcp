@@ -445,4 +445,3 @@ func TestMarshalToolResult_NilMessage(t *testing.T) {
 		t.Fatalf("expected empty JSON object, got %s", result.Content)
 	}
 }
-
