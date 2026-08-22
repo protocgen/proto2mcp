@@ -317,6 +317,112 @@ func TestToolRegistry_ConcurrentAccess(t *testing.T) {
 	}
 }
 
+func TestToolRegistry_LookupDefinition(t *testing.T) {
+	reg := NewToolRegistry()
+
+	schema := json.RawMessage(`{"type":"object"}`)
+	def := ToolDefinition{
+		Name:        "GetPatient",
+		Description: "Get a patient by ID",
+		InputSchema: schema,
+		Annotations: map[string]any{
+			"readOnlyHint":    true,
+			"destructiveHint": false,
+		},
+	}
+	reg.Register(def, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	// Lookup existing tool.
+	got, ok := reg.LookupDefinition("GetPatient")
+	if !ok {
+		t.Fatal("expected tool to be found")
+	}
+	if got.Name != "GetPatient" {
+		t.Fatalf("expected name 'GetPatient', got %q", got.Name)
+	}
+	if got.Description != "Get a patient by ID" {
+		t.Fatalf("expected description 'Get a patient by ID', got %q", got.Description)
+	}
+	if got.Annotations["readOnlyHint"] != true {
+		t.Fatalf("expected readOnlyHint=true, got %v", got.Annotations["readOnlyHint"])
+	}
+	if string(got.InputSchema) != `{"type":"object"}` {
+		t.Fatalf("unexpected InputSchema: %s", got.InputSchema)
+	}
+}
+
+func TestToolRegistry_LookupDefinition_NotFound(t *testing.T) {
+	reg := NewToolRegistry()
+
+	got, ok := reg.LookupDefinition("Nonexistent")
+	if ok {
+		t.Fatal("expected ok=false for missing tool")
+	}
+	if got.Name != "" {
+		t.Fatalf("expected zero ToolDefinition, got name=%q", got.Name)
+	}
+}
+
+func TestToolRegistry_LookupDefinition_DefensiveCopy(t *testing.T) {
+	reg := NewToolRegistry()
+
+	schema := json.RawMessage(`{"type":"object"}`)
+	reg.Register(ToolDefinition{
+		Name:        "Tool1",
+		InputSchema: schema,
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	// Get a copy and mutate it.
+	got, _ := reg.LookupDefinition("Tool1")
+	got.InputSchema[0] = 'X'
+
+	// Original should be unchanged.
+	got2, _ := reg.LookupDefinition("Tool1")
+	if got2.InputSchema[0] != '{' {
+		t.Fatalf("defensive copy failed: internal InputSchema was mutated, got %q", string(got2.InputSchema))
+	}
+}
+
+func TestToolRegistry_LookupDefinition_Concurrent(t *testing.T) {
+	reg := NewToolRegistry()
+
+	// Pre-register some tools.
+	for i := 0; i < 5; i++ {
+		name := fmt.Sprintf("Tool_%d", i)
+		reg.Register(
+			ToolDefinition{Name: name, InputSchema: json.RawMessage(`{}`)},
+			func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+				return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+			},
+		)
+	}
+
+	// Concurrent LookupDefinition + Register should not race.
+	done := make(chan struct{})
+	for i := 0; i < 10; i++ {
+		go func(n int) {
+			defer func() { done <- struct{}{} }()
+			name := fmt.Sprintf("Tool_%d", n)
+			reg.LookupDefinition(name)
+			// Also register new tools concurrently.
+			reg.Register(
+				ToolDefinition{Name: fmt.Sprintf("New_%d", n), InputSchema: json.RawMessage(`{}`)},
+				func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+					return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+				},
+			)
+			reg.LookupDefinition(fmt.Sprintf("New_%d", n))
+		}(i)
+	}
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+}
+
 func TestWrapHandler_TenantExtraction(t *testing.T) {
 	// C1: Verify that tenantExtractor is actually invoked and context is populated.
 	var gotTenant string
