@@ -5,6 +5,7 @@ package macro
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 )
 
 // HandlerFunc mirrors mcpruntime.HandlerFunc to avoid circular imports.
@@ -47,4 +48,40 @@ const (
 // should delegate to that engine rather than reimplementing orchestration.
 type Executor interface {
 	Execute(ctx context.Context, steps []StepDef, input json.RawMessage) (json.RawMessage, error)
+}
+
+// SequentialExecutor runs macro steps one at a time, in order.
+// This is the default V3 implementation for in-process orchestration.
+//
+// EXPERIMENTAL: This API is not yet stable.
+type SequentialExecutor struct {
+	// Lookup resolves a tool handler by name.
+	Lookup func(toolName string) (HandlerFunc, bool)
+}
+
+// Execute runs each step sequentially, passing the original input
+// to each step. Results are collected into a JSON object keyed by OutputKey.
+// If a step fails, execution stops and the error is returned (fail-fast).
+func (e *SequentialExecutor) Execute(ctx context.Context, steps []StepDef, input json.RawMessage) (json.RawMessage, error) {
+	results := make(map[string]json.RawMessage)
+
+	for i, step := range steps {
+		handler, ok := e.Lookup(step.ToolName)
+		if !ok {
+			return nil, fmt.Errorf("macro step %d: tool %q not found", i, step.ToolName)
+		}
+
+		result, err := handler(ctx, input)
+		if err != nil {
+			return nil, fmt.Errorf("macro step %d (%s): %w", i, step.ToolName, err)
+		}
+
+		key := step.OutputKey
+		if key == "" {
+			key = step.ToolName
+		}
+		results[key] = result
+	}
+
+	return json.Marshal(results)
 }

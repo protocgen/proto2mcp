@@ -82,6 +82,20 @@ func generateRegisterCall(g *jen.Group, t ToolEmitInfo) {
 		defDict[jen.Id("ResourceURI")] = jen.Lit(t.Tool.ResourceURI)
 	}
 
+	if len(t.Tool.SubTools) > 0 {
+		var stepValues []jen.Code
+		for _, step := range t.Tool.SubTools {
+			stepDict := jen.Dict{
+				jen.Id("ToolName"): jen.Lit(step.ToolName),
+			}
+			if step.OutputKey != "" {
+				stepDict[jen.Id("OutputKey")] = jen.Lit(step.OutputKey)
+			}
+			stepValues = append(stepValues, jen.Qual(runtimePkg, "MacroStep").Values(stepDict))
+		}
+		defDict[jen.Id("Steps")] = jen.Index().Qual(runtimePkg, "MacroStep").Values(stepValues...)
+	}
+
 	def := jen.Qual(runtimePkg, "ToolDefinition").Values(defDict)
 
 	handlerClosure := jen.Func().Params(
@@ -105,7 +119,12 @@ func generateRegisterCall(g *jen.Group, t ToolEmitInfo) {
 		jen.Return(jen.Qual(runtimePkg, "MarshalToolResult").Call(jen.Id("resp"))),
 	)
 
-	g.Id("registry").Dot("Register").Call(
+	registerMethod := "Register"
+	if len(t.Tool.SubTools) > 0 {
+		registerMethod = "RegisterMacro"
+	}
+
+	g.Id("registry").Dot(registerMethod).Call(
 		def,
 		jen.Id("cfg").Dot("WrapHandler").Call(jen.Id(nameConst), handlerClosure),
 	)

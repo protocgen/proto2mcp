@@ -56,6 +56,15 @@ type ToolDefinition struct {
 	// Template variables use {field_name} syntax, e.g. "patient://{patient_id}".
 	// Set by generated code from proto method annotations.
 	ResourceURI string `json:"-"`
+	// Steps defines macro-tool sub-steps for sequential execution (V3 experimental).
+	// When non-empty, the tool is treated as a macro that orchestrates other tools.
+	Steps []MacroStep `json:"-"`
+}
+
+// MacroStep defines a step in a macro-tool execution (V3 experimental).
+type MacroStep struct {
+	ToolName  string
+	OutputKey string
 }
 
 // HandlerFunc is the function signature for tool call handlers.
