@@ -52,6 +52,10 @@ type ToolDefinition struct {
 	// Set by generated code from proto field annotations (resource_key = true).
 	// Used by WrapHandler to populate ToolRequest.ResourceKeys.
 	ResourceKeys []string `json:"-"`
+	// ResourceURI is the URI template for tools that expose MCP Resources (V2).
+	// Template variables use {field_name} syntax, e.g. "patient://{patient_id}".
+	// Set by generated code from proto method annotations.
+	ResourceURI string `json:"-"`
 }
 
 // HandlerFunc is the function signature for tool call handlers.

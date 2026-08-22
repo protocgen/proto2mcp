@@ -24,7 +24,6 @@ func RegisterPingServiceMCP(registry mcpruntime.Registry, handler PingServiceMCP
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
-		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: PingService_PingDescription,
 		InputSchema: json.RawMessage(PingService_PingSchema),
 		Name:        PingService_PingName,
@@ -57,7 +56,6 @@ func RegisterHealthServiceMCP(registry mcpruntime.Registry, handler HealthServic
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
-		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: HealthService_CheckStatusDescription,
 		InputSchema: json.RawMessage(HealthService_CheckStatusSchema),
 		Name:        HealthService_CheckStatusName,

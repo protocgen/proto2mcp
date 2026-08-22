@@ -24,7 +24,6 @@ func RegisterAllTypesServiceMCP(registry mcpruntime.Registry, handler AllTypesSe
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
-		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: AllTypesService_ProcessAllTypesDescription,
 		InputSchema: json.RawMessage(AllTypesService_ProcessAllTypesSchema),
 		Name:        AllTypesService_ProcessAllTypesName,

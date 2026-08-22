@@ -37,7 +37,6 @@ func RegisterOrderServiceMCP(registry mcpruntime.Registry, handler OrderServiceM
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
-		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: OrderService_CreateOrderDescription,
 		InputSchema: json.RawMessage(OrderService_CreateOrderSchema),
 		Name:        OrderService_CreateOrderName,
@@ -53,7 +52,6 @@ func RegisterOrderServiceMCP(registry mcpruntime.Registry, handler OrderServiceM
 		return mcpruntime.MarshalToolResult(resp)
 	}))
 	registry.Register(mcpruntime.ToolDefinition{
-		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: OrderService_GetOrderDescription,
 		InputSchema: json.RawMessage(OrderService_GetOrderSchema),
 		Name:        OrderService_GetOrderName,
@@ -69,7 +67,6 @@ func RegisterOrderServiceMCP(registry mcpruntime.Registry, handler OrderServiceM
 		return mcpruntime.MarshalToolResult(resp)
 	}))
 	registry.Register(mcpruntime.ToolDefinition{
-		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false},
 		Description: OrderService_CancelOrderDescription,
 		InputSchema: json.RawMessage(OrderService_CancelOrderSchema),
 		Name:        OrderService_CancelOrderName,

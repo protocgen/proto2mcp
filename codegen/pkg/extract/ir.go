@@ -14,6 +14,27 @@ type FileIR struct {
 	Warnings []Warning
 	// Skip is true if the file was annotated with skip=true.
 	Skip bool
+	// Prompts is the list of prompt templates extracted from the file options.
+	Prompts []PromptIR
+}
+
+// PromptIR represents a prompt template extracted from proto file options.
+type PromptIR struct {
+	// Name is the prompt name.
+	Name string
+	// Description is the LLM-facing description.
+	Description string
+	// Tools lists the tool names this prompt uses.
+	Tools []string
+	// Arguments is the list of explicitly declared arguments.
+	Arguments []PromptArgIR
+}
+
+// PromptArgIR represents an argument for a prompt template.
+type PromptArgIR struct {
+	Name        string
+	Description string
+	Required    bool
 }
 
 // ServiceIR represents a protobuf service extracted for MCP generation.
