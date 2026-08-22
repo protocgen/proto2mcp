@@ -1,6 +1,7 @@
 package mcpruntime
 
 import (
+	"context"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -47,5 +48,44 @@ func FuzzSanitizeErrorMessage(f *testing.F) {
 		if len(result) > 200 {
 			t.Errorf("sanitized message exceeds 200 chars: got %d", len(result))
 		}
+	})
+}
+
+// FuzzResourceKeyExtraction verifies that resource key extraction
+// never panics regardless of the Arguments content.
+func FuzzResourceKeyExtraction(f *testing.F) {
+	// Seed corpus with various edge cases.
+	f.Add([]byte(`{"patient_id":"P-123"}`))
+	f.Add([]byte(`{"patient_id":42}`))
+	f.Add([]byte(`{"patient_id":null}`))
+	f.Add([]byte(`{"patient_id":true}`))
+	f.Add([]byte(`{"patient_id":{"nested":"obj"}}`))
+	f.Add([]byte(`{"patient_id":["array"]}`))
+	f.Add([]byte(`{}`))
+	f.Add([]byte(`[]`))
+	f.Add([]byte(`not json`))
+	f.Add([]byte(``))
+	f.Add([]byte(`{"patient_id":"","org_id":"O-1"}`))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		reg := NewToolRegistry()
+		reg.Register(ToolDefinition{
+			Name:         "FuzzTool",
+			InputSchema:  []byte(`{}`),
+			ResourceKeys: []string{"patient_id", "org_id"},
+		}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+			return &CallToolResult{Content: []byte(`{}`), IsError: false}, nil
+		})
+
+		cfg := NewConfig(WithToolRegistry(reg))
+		handler := cfg.WrapHandler("FuzzTool", func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+			return &CallToolResult{Content: []byte(`{}`), IsError: false}, nil
+		})
+
+		// Must never panic.
+		_, _ = handler(context.Background(), ToolRequest{
+			ToolName:  "FuzzTool",
+			Arguments: data,
+		})
 	})
 }

@@ -65,6 +65,8 @@ const (
 	extServiceOptions protoreflect.FieldNumber = 1180
 	// extFileOptions is the field number for FileMCPOptions on google.protobuf.FileOptions.
 	extFileOptions protoreflect.FieldNumber = 1181
+	// extFieldOptions is the field number for FieldMCPOptions on google.protobuf.FieldOptions.
+	extFieldOptions protoreflect.FieldNumber = 1182
 )
 
 // ExtractFile processes a single protogen.File into a FileIR.
@@ -218,6 +220,11 @@ func extractMethod(method *protogen.Method, svcName, svcPrefix string) *ToolIR {
 		} else {
 			tool.InputSchema = schema
 		}
+
+		// Extract resource keys from field annotations.
+		tool.ResourceKeys, tool.Warnings = extractResourceKeys(
+			method.Input, toolName, tool.Warnings,
+		)
 	}
 
 	return tool
@@ -340,4 +347,59 @@ func readFileOptions(file *protogen.File) *fileOptions {
 	})
 
 	return fOpts
+}
+
+// extractResourceKeys walks the fields of the input message and returns
+// the JSON (proto) names of fields annotated with resource_key = true.
+// Non-string fields annotated with resource_key generate a linter warning.
+func extractResourceKeys(msg *protogen.Message, toolName string, warnings []Warning) ([]string, []Warning) {
+	var keys []string
+	for _, field := range msg.Fields {
+		opts := field.Desc.Options()
+		if opts == nil {
+			continue
+		}
+
+		var isResourceKey bool
+		opts.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+			if fd.IsExtension() && fd.Number() == extFieldOptions {
+				subMsg := v.Message()
+				subMsg.Range(func(subFd protoreflect.FieldDescriptor, subV protoreflect.Value) bool {
+					if subFd.Number() == 1 { // resource_key
+						isResourceKey = subV.Bool()
+					}
+					return true
+				})
+				return false
+			}
+			return true
+		})
+
+		if !isResourceKey {
+			continue
+		}
+
+		// Repeated and map fields are not supported as resource keys.
+		if field.Desc.IsList() || field.Desc.IsMap() {
+			warnings = append(warnings, Warning{
+				Severity: WarnWarning,
+				Method:   toolName,
+				Message:  fmt.Sprintf("resource_key on repeated/map field %q is not supported; only singular string fields can be resource keys", field.Desc.Name()),
+			})
+			continue
+		}
+
+		// Only string fields are supported for V1.
+		if field.Desc.Kind() != protoreflect.StringKind {
+			warnings = append(warnings, Warning{
+				Severity: WarnWarning,
+				Method:   toolName,
+				Message:  fmt.Sprintf("resource_key on non-string field %q is not supported; only string fields can be resource keys", field.Desc.Name()),
+			})
+			continue
+		}
+
+		keys = append(keys, string(field.Desc.JSONName()))
+	}
+	return keys, warnings
 }

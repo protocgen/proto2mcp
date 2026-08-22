@@ -58,3 +58,23 @@ func TestWithToolNamer(t *testing.T) {
 		t.Fatalf("expected 'Foo.Bar', got %q", got)
 	}
 }
+
+func TestWithToolRegistry(t *testing.T) {
+	reg := NewToolRegistry()
+	cfg := NewConfig(WithToolRegistry(reg))
+	if cfg.registry != reg {
+		t.Fatal("expected registry to be set")
+	}
+
+	// Nil registry should be accepted.
+	cfg2 := NewConfig(WithToolRegistry(nil))
+	if cfg2.registry != nil {
+		t.Fatal("expected nil registry")
+	}
+
+	// Default should be nil.
+	cfg3 := NewConfig()
+	if cfg3.registry != nil {
+		t.Fatal("expected nil registry by default")
+	}
+}

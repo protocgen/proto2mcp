@@ -2,6 +2,7 @@ package mcpruntime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 )
 
@@ -85,13 +86,32 @@ func (c *Config) WrapHandler(toolName string, handler HandlerFunc) HandlerFunc {
 		}
 	}
 
-	// Wrap with definition injection if registry is configured.
+	// Wrap with definition injection and resource key extraction
+	// if registry is configured.
 	if c.registry != nil {
 		inner := chain
 		reg := c.registry
 		chain = func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
 			if def, ok := reg.LookupDefinition(toolName); ok {
 				req.Definition = &def
+				// Extract resource keys from arguments.
+				if len(def.ResourceKeys) > 0 && len(req.Arguments) > 0 {
+					var args map[string]json.RawMessage
+					if json.Unmarshal(req.Arguments, &args) == nil {
+						keys := make(map[string]string, len(def.ResourceKeys))
+						for _, k := range def.ResourceKeys {
+							if raw, ok := args[k]; ok && string(raw) != "null" {
+								var val string
+								if json.Unmarshal(raw, &val) == nil {
+									keys[k] = val
+								}
+							}
+						}
+						if len(keys) > 0 {
+							req.ResourceKeys = keys
+						}
+					}
+				}
 			}
 			return inner(ctx, req)
 		}

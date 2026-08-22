@@ -16,6 +16,7 @@
           packages = with pkgs; [
             go_1_25               # Go 1.25 (matches go.mod)
             buf                   # Proto linting & codegen
+            protoc-gen-go         # buf generate needs this
             golangci-lint         # Go linter
             lefthook              # Git hooks manager
             editorconfig-checker  # .editorconfig enforcement

@@ -67,6 +67,15 @@ func generateRegisterCall(g *jen.Group, t ToolEmitInfo) {
 	}
 	defDict[jen.Id("Annotations")] = jen.Map(jen.String()).Any().Values(annotations...)
 
+	// Emit ResourceKeys if any fields are annotated with resource_key.
+	if len(t.Tool.ResourceKeys) > 0 {
+		keys := make([]jen.Code, len(t.Tool.ResourceKeys))
+		for i, k := range t.Tool.ResourceKeys {
+			keys[i] = jen.Lit(k)
+		}
+		defDict[jen.Id("ResourceKeys")] = jen.Index().String().Values(keys...)
+	}
+
 	def := jen.Qual(runtimePkg, "ToolDefinition").Values(defDict)
 
 	handlerClosure := jen.Func().Params(

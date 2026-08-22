@@ -24,6 +24,11 @@ type ToolRequest struct {
 	// Middleware can inspect Annotations (e.g., readOnlyHint, destructiveHint)
 	// without a separate lookup. Nil when no ToolRegistry is configured.
 	Definition *ToolDefinition `json:"-"`
+	// ResourceKeys maps resource key field names to their string values,
+	// extracted from Arguments before the middleware chain runs.
+	// Only populated for fields annotated with resource_key = true
+	// in the proto definition. Nil when no resource keys are configured.
+	ResourceKeys map[string]string `json:"-"`
 }
 
 // ToolDefinition describes an MCP tool for listing.
@@ -43,6 +48,10 @@ type ToolDefinition struct {
 	// "destructiveHint" (bool, default true when omitted),
 	// "idempotentHint" (bool), "openWorldHint" (bool).
 	Annotations map[string]any `json:"annotations,omitempty"`
+	// ResourceKeys lists JSON field names to extract as resource identifiers.
+	// Set by generated code from proto field annotations (resource_key = true).
+	// Used by WrapHandler to populate ToolRequest.ResourceKeys.
+	ResourceKeys []string `json:"-"`
 }
 
 // HandlerFunc is the function signature for tool call handlers.
