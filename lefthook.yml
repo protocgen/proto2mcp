@@ -13,6 +13,14 @@ pre-commit:
         go vet ./...
         cd codegen && go vet ./...
 
+    golangci-lint:
+      glob: "*.go"
+      fail_text: "golangci-lint failed (non-blocking, CI is authoritative)"
+      run: |
+        golangci-lint run ./... 2>/dev/null
+        cd codegen && golangci-lint run ./... 2>/dev/null
+        true
+
     editorconfig:
       run: editorconfig-checker
 

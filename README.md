@@ -1,3 +1,5 @@
+[![CI](https://github.com/protocgen/proto2mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/protocgen/proto2mcp/actions/workflows/ci.yml)
+
 # proto2mcp
 
 > Generate type-safe MCP (Model Context Protocol) servers from Protobuf service definitions.
@@ -112,6 +114,41 @@ func (l *loggingInterceptor) HandleToolCall(ctx context.Context, req mcpruntime.
 RegisterPatientServiceMCP(registry, handler, mcpruntime.WithMiddleware(&loggingInterceptor{}))
 ```
 
+### Middleware Metadata
+
+- `ToolRequest.Definition` — access tool metadata (annotations, schema) in middleware
+- `ToolRequest.ResourceKeys` — auto-extracted resource identifiers for ABAC
+
+The `resource_key` proto annotation lets you mark fields that contain resource IDs. The generated code automatically extracts these into `req.ResourceKeys`.
+
+Example authorization middleware using ResourceKeys:
+
+```go
+// authzInterceptor checks resource access before tool execution.
+type authzInterceptor struct {
+    policy PolicyEngine
+}
+
+func (a *authzInterceptor) HandleToolCall(ctx context.Context, req mcpruntime.ToolRequest, next mcpruntime.HandlerFunc) (*mcpruntime.CallToolResult, error) {
+    // Resource keys are automatically extracted from arguments
+    // for fields annotated with resource_key in your proto.
+    if patientID, ok := req.ResourceKeys["patient_id"]; ok {
+        if !a.policy.CanAccess(ctx, "patient", patientID) {
+            return mcpruntime.InternalError("access denied"), nil
+        }
+    }
+    return next(ctx, req)
+}
+```
+
+```protobuf
+import "protocgen/mcp/v1/options.proto";
+
+message GetPatientRequest {
+  string patient_id = 1 [(protocgen.mcp.v1.field) = { resource_key: true }];
+}
+```
+
 ## ConnectRPC Integration
 
 If you already have a running ConnectRPC backend, `proto2mcp` can generate a forwarder that skips the handler implementation entirely, bridging the MCP request directly to a Connect client. This is completely opt-in and lets you expose existing internal APIs to LLMs without rewriting them.
@@ -139,7 +176,14 @@ See the [godoc](https://pkg.go.dev/github.com/protocgen/proto2mcp) for full pack
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
+
+Quick start:
+```bash
+nix develop    # Enter dev shell with all tools
+make test      # Run full test suite
+make hygiene   # Run formatting checks
+```
 
 ## License
 

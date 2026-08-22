@@ -1,65 +1,66 @@
 # Contributing to proto2mcp
 
-Thank you for your interest in contributing to proto2mcp!
+We welcome contributions! This document outlines the process for contributing to the project.
+
+## Prerequisites
+
+The project uses Nix to manage dependencies. This is the recommended way to set up your environment.
+- Nix (for `nix develop` shell)
+
+Alternatively, you can manually install the required tools:
+- Go 1.25+
+- buf
+- golangci-lint
 
 ## Getting Started
 
+1. Enter the development shell:
+   ```bash
+   nix develop
+   ```
+2. Run tests to ensure everything is working:
+   ```bash
+   make test
+   ```
+3. Run formatting and linting checks:
+   ```bash
+   make hygiene
+   ```
+
+## Branch Conventions
+
+Please use the following prefixes for your branches:
+- `feat/` for new features
+- `fix/` for bug fixes
+- `chore/` for maintenance, hygiene, and tooling changes
+
+## Git Hooks
+
+We use `lefthook` to manage Git hooks.
+- **Pre-commit**: Runs `gofmt`, `go vet`, `golangci-lint`, `editorconfig-checker`, and `yamllint`.
+- **Pre-push**: Runs `make test` which executes the full test suite with the race detector.
+
+## Testing
+
+The project is split into root and codegen modules. Run tests for both:
 ```bash
-git clone https://github.com/protocgen/proto2mcp.git
-cd proto2mcp
-make ci  # lint + test + build
+go test -race -count=1 ./...
 ```
 
-### Project Structure
-
-```text
-proto2mcp/
-├── codegen/                    # protoc plugin (separate Go module)
-│   ├── cmd/protoc-gen-proto2mcp/  # plugin entrypoint
-│   └── pkg/
-│       ├── extract/            # proto → IR extraction + JSON Schema
-│       └── emit/               # IR → Go code generation (jennifer)
-├── pkg/mcpruntime/             # runtime library (users import this)
-│   └── connectbridge/          # optional ConnectRPC error mapping
-├── proto/                      # options proto definitions
-├── examples/healthcare/        # working example
-└── Makefile                    # build, test, lint, release targets
+If you modify code generation logic, you may need to update golden files:
+```bash
+cd codegen && go test -run TestGoldenFiles ./pkg/emit/ -args -update
 ```
 
-### Two Go Modules
+## Protocol Buffers
 
-This project uses two Go modules:
-- **Root** (`go.mod`): runtime library (`pkg/mcpruntime/`)
-- **`codegen/`** (`codegen/go.mod`): protoc plugin with heavy codegen dependencies
+If you modify any `.proto` files, regenerate the Go code using `buf`:
+```bash
+buf generate
+```
 
-This keeps the runtime dependency tree minimal for users.
+## Code Style
 
-## Development Workflow
-
-1. **Create a branch** from `main`
-2. **Make changes** — run `make ci` locally before pushing
-3. **Open a PR** — CI runs lint, test (3 OS × race detector), buf lint, govulncheck
-4. **Review & merge**
-
-## Useful Make Targets
-
-| Target | Description |
-|---|---|
-| `make ci` | Full local CI (lint + test + build) |
-| `make test` | Tests with race detector |
-| `make test-cover` | Tests with coverage report |
-| `make test-fuzz` | Fuzz tests (30s each) |
-| `make bench` | Benchmarks |
-| `make golden-update` | Regenerate golden test files |
-| `make lint-full` | golangci-lint (requires install) |
-
-## Guidelines
-
-- **Tests**: All new functionality needs tests. Use table-driven tests.
-- **Golden files**: If code generation output changes, update goldens with `make golden-update`.
-- **Comments**: Export all public symbols with GoDoc comments.
-- **Dependencies**: Minimize runtime dependencies. Heavy deps go in `codegen/`.
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the Apache 2.0 License.
+- Follow standard Go conventions.
+- Adhere to the Protocol Buffers style guide.
+- Keep your commits atomic and well-documented.
