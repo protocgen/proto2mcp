@@ -51,6 +51,12 @@ RegisterPatientServiceMCP(registry, myHandler)
 - **ConnectRPC bridge**: Optional forwarding to directly connect MCP calls to existing ConnectRPC backends without rewriting handlers.
 - **Middleware**: Intercept requests with composable middleware for Auth, logging, and tenant isolation.
 - **OTel metrics**: Built-in OpenTelemetry metrics (`mcp_tool_calls_total` and `mcp_tool_call_duration_seconds`).
+- **Prompt templates**: Define LLM prompt templates in proto with explicit arguments, generate handler interfaces.
+- **Resource URIs**: Annotate methods with URI templates for MCP Resource exposure.
+- **Tool filtering**: `FilteredTools(ctx)` ensures agents only see tools they're authorized to use.
+- **Rate limiting**: Built-in per-tenant token bucket rate limiter middleware.
+- **Security hardening**: Header allowlisting, resource key validation, bounded metrics cardinality.
+- **Macro tools (experimental)**: Compose tools into sequential macro workflows via proto annotations.
 
 ## Architecture
 
@@ -153,6 +159,77 @@ message GetPatientRequest {
 
 If you already have a running ConnectRPC backend, `proto2mcp` can generate a forwarder that skips the handler implementation entirely, bridging the MCP request directly to a Connect client. This is completely opt-in and lets you expose existing internal APIs to LLMs without rewriting them.
 
+## Prompt Templates
+
+Define LLM prompt templates at the file level in your proto files:
+
+```protobuf
+import "protocgen/mcp/v1/options.proto";
+
+option (protocgen.mcp.v1.file) = {
+  prompts: [{
+    name: "OnboardPatient"
+    description: "Guide through patient onboarding"
+    arguments: [
+      { name: "patient_name", description: "Patient full name", required: true },
+      { name: "insurance_id", description: "Insurance ID" }
+    ]
+    tools: ["PatientService_CreatePatient", "BillingService_CreateAccount"]
+  }]
+};
+```
+
+Generates a handler interface and registration function:
+
+```go
+// Implement the generated interface
+type myPromptHandler struct{}
+
+func (h *myPromptHandler) HandleOnboardPatient(ctx context.Context, args map[string]string) (*mcpruntime.GetPromptResult, error) {
+    return &mcpruntime.GetPromptResult{
+        Messages: []mcpruntime.PromptMessage{{
+            Role: "user",
+            Content: mcpruntime.TextContent(fmt.Sprintf("Onboard patient %s", args["patient_name"])),
+        }},
+    }, nil
+}
+
+// Register
+promptRegistry := mcpruntime.NewPromptRegistry()
+RegisterPatientPrompts(promptRegistry, &myPromptHandler{})
+```
+
+## Macro Tools (Experimental)
+
+Compose tools into sequential workflows using proto annotations:
+
+```protobuf
+rpc OnboardPatient(OnboardReq) returns (OnboardResp) {
+  option (protocgen.mcp.v1.method) = {
+    macro: {
+      steps: [
+        { tool: "CreatePatient", output_key: "patient" },
+        { tool: "CreateBilling", output_key: "billing" }
+      ]
+    }
+  };
+}
+```
+
+The generated code calls `RegisterMacro` with step definitions. Use `SequentialExecutor` to run them:
+
+```go
+executor := &macro.SequentialExecutor{
+    Lookup: func(name string) (macro.HandlerFunc, bool) {
+        h, ok := registry.Lookup(name)
+        // adapt HandlerFunc types...
+        return adapted, ok
+    },
+}
+```
+
+> **Note:** Macro APIs are experimental and may change.
+
 ## LLM Linter
 
 The plugin includes an LLM Linter that analyzes your Protobuf definitions. It will emit warnings if you use patterns that LLMs typically struggle with, such as:
@@ -165,9 +242,62 @@ The plugin includes an LLM Linter that analyzes your Protobuf definitions. It wi
 The `mcpruntime` package provides built-in support for OpenTelemetry metrics. You can track tool usage, errors, and latencies.
 
 ```go
-metrics, err := mcpruntime.NewMetrics(otel.Meter("mcp"))
+// Bounded cardinality (recommended for production)
+tools := registry.Tools()
+toolNames := make([]string, len(tools))
+for i, t := range tools {
+    toolNames[i] = t.Name
+}
+metrics, err := mcpruntime.NewBoundedMetrics(otel.Meter("mcp"), toolNames)
 // Then pass it via options during registration
 RegisterPatientServiceMCP(registry, handler, mcpruntime.WithMetrics(metrics))
+```
+
+## Security
+
+proto2mcp includes several security features for production deployments:
+
+### Tool Filtering
+
+Use `FilteredTools` to ensure agents only see tools they're authorized for:
+
+```go
+// Agents only see permitted tools in tools/list
+tools := registry.FilteredTools(ctx, authzMiddleware)
+```
+
+### Header Allowlist
+
+Generated ConnectRPC forwarders filter headers through `DefaultHeaderAllowlist` (Authorization, X-Request-ID, traceparent, tracestate). Customize with `WithHeaderAllowlist`.
+
+### Rate Limiting
+
+```go
+rl := mcpruntime.NewRateLimiter(10.0, 20) // 10 calls/sec, burst 20
+RegisterServiceMCP(registry, handler, mcpruntime.WithMiddleware(rl))
+```
+
+### Resource Key Validation
+
+```go
+mcpruntime.WithResourceKeyValidator(func(key, value string) error {
+    if strings.Contains(value, "..") {
+        return fmt.Errorf("invalid resource key")
+    }
+    return nil
+})
+```
+
+### Error Verbosity
+
+Control validation error detail level for production vs development:
+
+```go
+// Production: generic errors, no schema leakage
+mapper := &connectbridge.ErrorMapper{VerboseErrors: false}
+
+// Development: field-level details for LLM self-correction
+mapper := &connectbridge.ErrorMapper{VerboseErrors: true}
 ```
 
 ## API Reference
