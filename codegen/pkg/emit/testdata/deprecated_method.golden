@@ -19,6 +19,9 @@ const LegacyService_OldMethodDescription = "[DEPRECATED] An old method"
 var LegacyService_OldMethodSchema = []byte("{\"type\":\"object\"}")
 
 func RegisterLegacyServiceMCP(registry mcpruntime.Registry, handler LegacyServiceMCPHandler, opts ...mcpruntime.Option) {
+	if tr, ok := registry.(*mcpruntime.ToolRegistry); ok {
+		opts = append([]mcpruntime.Option{mcpruntime.WithToolRegistry(tr)}, opts...)
+	}
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{

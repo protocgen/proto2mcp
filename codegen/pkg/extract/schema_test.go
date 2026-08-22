@@ -49,8 +49,12 @@ func TestProtoKindToJSONType(t *testing.T) {
 }
 
 func strPtr(s string) *string { return &s }
-func typePtr(t descriptorpb.FieldDescriptorProto_Type) *descriptorpb.FieldDescriptorProto_Type { return &t }
-func labelPtr(l descriptorpb.FieldDescriptorProto_Label) *descriptorpb.FieldDescriptorProto_Label { return &l }
+func typePtr(t descriptorpb.FieldDescriptorProto_Type) *descriptorpb.FieldDescriptorProto_Type {
+	return &t
+}
+func labelPtr(l descriptorpb.FieldDescriptorProto_Label) *descriptorpb.FieldDescriptorProto_Label {
+	return &l
+}
 
 func TestMessageToSchema(t *testing.T) {
 	fd := &descriptorpb.FileDescriptorProto{
@@ -206,31 +210,31 @@ func TestMessageToSchema(t *testing.T) {
 		Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_BYTES),
 		JsonName: strPtr("bytesField"),
 	})
-	
+
 	// Add Oneof
 	fd.MessageType[0].OneofDecl = []*descriptorpb.OneofDescriptorProto{
 		{Name: strPtr("test_oneof")},
 	}
 	fd.MessageType[0].Field = append(fd.MessageType[0].Field, &descriptorpb.FieldDescriptorProto{
-		Name:     strPtr("oneof_str"),
-		Number:   func(i int32) *int32 { return &i }(6),
-		Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
-		Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_STRING),
-		JsonName: strPtr("oneofStr"),
+		Name:       strPtr("oneof_str"),
+		Number:     func(i int32) *int32 { return &i }(6),
+		Label:      labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+		Type:       typePtr(descriptorpb.FieldDescriptorProto_TYPE_STRING),
+		JsonName:   strPtr("oneofStr"),
 		OneofIndex: func(i int32) *int32 { return &i }(0),
 	}, &descriptorpb.FieldDescriptorProto{
-		Name:     strPtr("oneof_int"),
-		Number:   func(i int32) *int32 { return &i }(7),
-		Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
-		Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_INT32),
-		JsonName: strPtr("oneofInt"),
+		Name:       strPtr("oneof_int"),
+		Number:     func(i int32) *int32 { return &i }(7),
+		Label:      labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+		Type:       typePtr(descriptorpb.FieldDescriptorProto_TYPE_INT32),
+		JsonName:   strPtr("oneofInt"),
 		OneofIndex: func(i int32) *int32 { return &i }(0),
 	})
 
 	plugin := buildTestPlugin(t, fd)
 
 	file := plugin.FilesByPath["test.proto"]
-	
+
 	t.Run("SimpleMessage", func(t *testing.T) {
 		msg := file.Messages[0]
 		schemaBytes, err := MessageToSchema(msg)

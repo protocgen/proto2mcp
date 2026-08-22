@@ -18,6 +18,9 @@ const PingService_PingDescription = ""
 var PingService_PingSchema = []byte("{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"}},\"additionalProperties\":false}")
 
 func RegisterPingServiceMCP(registry mcpruntime.Registry, handler PingServiceMCPHandler, opts ...mcpruntime.Option) {
+	if tr, ok := registry.(*mcpruntime.ToolRegistry); ok {
+		opts = append([]mcpruntime.Option{mcpruntime.WithToolRegistry(tr)}, opts...)
+	}
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{
@@ -48,6 +51,9 @@ const HealthService_CheckStatusDescription = ""
 var HealthService_CheckStatusSchema = []byte("{\"type\":\"object\",\"additionalProperties\":false}")
 
 func RegisterHealthServiceMCP(registry mcpruntime.Registry, handler HealthServiceMCPHandler, opts ...mcpruntime.Option) {
+	if tr, ok := registry.(*mcpruntime.ToolRegistry); ok {
+		opts = append([]mcpruntime.Option{mcpruntime.WithToolRegistry(tr)}, opts...)
+	}
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{

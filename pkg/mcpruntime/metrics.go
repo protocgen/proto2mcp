@@ -17,7 +17,8 @@ type Metrics struct {
 
 // NewMetrics creates OTel metric instruments.
 // Emits: mcp_tool_calls_total{tool, tenant, status}
-//        mcp_tool_call_duration_seconds{tool, tenant}
+//
+//	mcp_tool_call_duration_seconds{tool, tenant}
 func NewMetrics(meter metric.Meter) (*Metrics, error) {
 	total, err := meter.Int64Counter("mcp_tool_calls_total",
 		metric.WithDescription("Total number of MCP tool calls"),

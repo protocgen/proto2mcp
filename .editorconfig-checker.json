@@ -1,0 +1,10 @@
+{
+  "Exclude": [
+    "LICENSE",
+    "flake.lock",
+    "\\.git/",
+    "gen/",
+    "vendor/",
+    "codegen/pkg/extract/coverage\\.out"
+  ]
+}

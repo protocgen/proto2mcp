@@ -17,15 +17,23 @@ import (
 
 // --- Simulated generated types (in real usage, these come from protoc) ---
 
-type GetPatientRequest struct{ PatientId string `json:"patient_id"` }
-type GetPatientResponse struct{ PatientId string `json:"patient_id"` }
-type ListPatientsRequest struct{ Limit int32 `json:"limit"` }
+type GetPatientRequest struct {
+	PatientId string `json:"patient_id"`
+}
+type GetPatientResponse struct {
+	PatientId string `json:"patient_id"`
+}
+type ListPatientsRequest struct {
+	Limit int32 `json:"limit"`
+}
 type ListPatientsResponse struct{}
 type CreateAppointmentRequest struct {
 	PatientId string `json:"patient_id"`
 	DoctorId  string `json:"doctor_id"`
 }
-type CreateAppointmentResponse struct{ AppointmentId string `json:"appointment_id"` }
+type CreateAppointmentResponse struct {
+	AppointmentId string `json:"appointment_id"`
+}
 
 // --- Simulated generated handler interface ---
 

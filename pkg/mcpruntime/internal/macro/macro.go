@@ -13,9 +13,9 @@ type HandlerFunc func(ctx context.Context, req json.RawMessage) (json.RawMessage
 
 // StepDef defines a step in a macro-tool execution.
 type StepDef struct {
-	ToolName     string
-	Parallel     bool
-	OutputKey    string
+	ToolName  string
+	Parallel  bool
+	OutputKey string
 	// InputMapping maps input field names to JSONPath expressions for
 	// wiring output from previous steps into the current step's input.
 	InputMapping map[string]string

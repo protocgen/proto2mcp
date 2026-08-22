@@ -41,14 +41,14 @@ func TestE2E_ExtractToEmitRoundtrip(t *testing.T) {
 					makeField("description", 2, descriptorpb.FieldDescriptorProto_TYPE_STRING),
 					{
 						Name: strPtr("priority"), Number: int32Ptr(3),
-						Label: labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
-						Type: typePtr(descriptorpb.FieldDescriptorProto_TYPE_ENUM),
+						Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+						Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_ENUM),
 						TypeName: strPtr(".test.v1.Priority"), JsonName: strPtr("priority"),
 					},
 					{
 						Name: strPtr("tags"), Number: int32Ptr(4),
-						Label: labelPtr(descriptorpb.FieldDescriptorProto_LABEL_REPEATED),
-						Type: typePtr(descriptorpb.FieldDescriptorProto_TYPE_STRING),
+						Label:    labelPtr(descriptorpb.FieldDescriptorProto_LABEL_REPEATED),
+						Type:     typePtr(descriptorpb.FieldDescriptorProto_TYPE_STRING),
 						JsonName: strPtr("tags"),
 					},
 				},

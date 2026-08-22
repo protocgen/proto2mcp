@@ -56,6 +56,39 @@ func (r *ToolRegistry) Lookup(toolName string) (HandlerFunc, bool) {
 	return entry.Handler, true
 }
 
+// LookupDefinition returns a tool's definition by name.
+// The returned definition is a defensive copy — callers may freely
+// mutate the returned InputSchema, Annotations, or ResourceKeys
+// without affecting the registry.
+// Returns the zero ToolDefinition and false if the tool is not found.
+func (r *ToolRegistry) LookupDefinition(toolName string) (ToolDefinition, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	entry, ok := r.tools[toolName]
+	if !ok {
+		return ToolDefinition{}, false
+	}
+	def := entry.Definition
+	if def.InputSchema != nil {
+		schemaCopy := make(json.RawMessage, len(def.InputSchema))
+		copy(schemaCopy, def.InputSchema)
+		def.InputSchema = schemaCopy
+	}
+	if def.Annotations != nil {
+		annCopy := make(map[string]any, len(def.Annotations))
+		for k, v := range def.Annotations {
+			annCopy[k] = v
+		}
+		def.Annotations = annCopy
+	}
+	if def.ResourceKeys != nil {
+		rkCopy := make([]string, len(def.ResourceKeys))
+		copy(rkCopy, def.ResourceKeys)
+		def.ResourceKeys = rkCopy
+	}
+	return def, true
+}
+
 // Tools returns all registered tool definitions.
 // InputSchema fields are defensively copied to prevent callers from
 // mutating the registry's internal state.
@@ -71,6 +104,18 @@ func (r *ToolRegistry) Tools() []ToolDefinition {
 			schemaCopy := make(json.RawMessage, len(def.InputSchema))
 			copy(schemaCopy, def.InputSchema)
 			def.InputSchema = schemaCopy
+		}
+		if def.Annotations != nil {
+			annCopy := make(map[string]any, len(def.Annotations))
+			for k, v := range def.Annotations {
+				annCopy[k] = v
+			}
+			def.Annotations = annCopy
+		}
+		if def.ResourceKeys != nil {
+			rkCopy := make([]string, len(def.ResourceKeys))
+			copy(rkCopy, def.ResourceKeys)
+			def.ResourceKeys = rkCopy
 		}
 		defs = append(defs, def)
 	}

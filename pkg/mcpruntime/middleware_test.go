@@ -317,6 +317,112 @@ func TestToolRegistry_ConcurrentAccess(t *testing.T) {
 	}
 }
 
+func TestToolRegistry_LookupDefinition(t *testing.T) {
+	reg := NewToolRegistry()
+
+	schema := json.RawMessage(`{"type":"object"}`)
+	def := ToolDefinition{
+		Name:        "GetPatient",
+		Description: "Get a patient by ID",
+		InputSchema: schema,
+		Annotations: map[string]any{
+			"readOnlyHint":    true,
+			"destructiveHint": false,
+		},
+	}
+	reg.Register(def, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	// Lookup existing tool.
+	got, ok := reg.LookupDefinition("GetPatient")
+	if !ok {
+		t.Fatal("expected tool to be found")
+	}
+	if got.Name != "GetPatient" {
+		t.Fatalf("expected name 'GetPatient', got %q", got.Name)
+	}
+	if got.Description != "Get a patient by ID" {
+		t.Fatalf("expected description 'Get a patient by ID', got %q", got.Description)
+	}
+	if got.Annotations["readOnlyHint"] != true {
+		t.Fatalf("expected readOnlyHint=true, got %v", got.Annotations["readOnlyHint"])
+	}
+	if string(got.InputSchema) != `{"type":"object"}` {
+		t.Fatalf("unexpected InputSchema: %s", got.InputSchema)
+	}
+}
+
+func TestToolRegistry_LookupDefinition_NotFound(t *testing.T) {
+	reg := NewToolRegistry()
+
+	got, ok := reg.LookupDefinition("Nonexistent")
+	if ok {
+		t.Fatal("expected ok=false for missing tool")
+	}
+	if got.Name != "" {
+		t.Fatalf("expected zero ToolDefinition, got name=%q", got.Name)
+	}
+}
+
+func TestToolRegistry_LookupDefinition_DefensiveCopy(t *testing.T) {
+	reg := NewToolRegistry()
+
+	schema := json.RawMessage(`{"type":"object"}`)
+	reg.Register(ToolDefinition{
+		Name:        "Tool1",
+		InputSchema: schema,
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	// Get a copy and mutate it.
+	got, _ := reg.LookupDefinition("Tool1")
+	got.InputSchema[0] = 'X'
+
+	// Original should be unchanged.
+	got2, _ := reg.LookupDefinition("Tool1")
+	if got2.InputSchema[0] != '{' {
+		t.Fatalf("defensive copy failed: internal InputSchema was mutated, got %q", string(got2.InputSchema))
+	}
+}
+
+func TestToolRegistry_LookupDefinition_Concurrent(t *testing.T) {
+	reg := NewToolRegistry()
+
+	// Pre-register some tools.
+	for i := 0; i < 5; i++ {
+		name := fmt.Sprintf("Tool_%d", i)
+		reg.Register(
+			ToolDefinition{Name: name, InputSchema: json.RawMessage(`{}`)},
+			func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+				return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+			},
+		)
+	}
+
+	// Concurrent LookupDefinition + Register should not race.
+	done := make(chan struct{})
+	for i := 0; i < 10; i++ {
+		go func(n int) {
+			defer func() { done <- struct{}{} }()
+			name := fmt.Sprintf("Tool_%d", n)
+			reg.LookupDefinition(name)
+			// Also register new tools concurrently.
+			reg.Register(
+				ToolDefinition{Name: fmt.Sprintf("New_%d", n), InputSchema: json.RawMessage(`{}`)},
+				func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+					return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+				},
+			)
+			reg.LookupDefinition(fmt.Sprintf("New_%d", n))
+		}(i)
+	}
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+}
+
 func TestWrapHandler_TenantExtraction(t *testing.T) {
 	// C1: Verify that tenantExtractor is actually invoked and context is populated.
 	var gotTenant string
@@ -446,3 +552,388 @@ func TestMarshalToolResult_NilMessage(t *testing.T) {
 	}
 }
 
+func TestWrapHandler_DefinitionInjection(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:        "GetPatient",
+		Description: "Get a patient",
+		InputSchema: json.RawMessage(`{}`),
+		Annotations: map[string]any{
+			"readOnlyHint":    true,
+			"destructiveHint": false,
+		},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	var gotDef *ToolDefinition
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotDef = req.Definition
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("GetPatient", handler)
+	_, err := wrapped(context.Background(), ToolRequest{ToolName: "GetPatient"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotDef == nil {
+		t.Fatal("expected Definition to be populated in middleware")
+	}
+	if gotDef.Name != "GetPatient" {
+		t.Fatalf("expected Definition.Name='GetPatient', got %q", gotDef.Name)
+	}
+	if gotDef.Annotations["readOnlyHint"] != true {
+		t.Fatalf("expected readOnlyHint=true, got %v", gotDef.Annotations["readOnlyHint"])
+	}
+}
+
+func TestWrapHandler_DefinitionInjection_NoRegistry(t *testing.T) {
+	var gotDef *ToolDefinition
+	cfg := NewConfig(
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotDef = req.Definition
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("GetPatient", handler)
+	_, _ = wrapped(context.Background(), ToolRequest{ToolName: "GetPatient"})
+	if gotDef != nil {
+		t.Fatal("expected Definition to be nil when no registry configured")
+	}
+}
+
+func TestWrapHandler_DefinitionInjection_UnknownTool(t *testing.T) {
+	reg := NewToolRegistry()
+
+	var gotDef *ToolDefinition
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotDef = req.Definition
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("NonexistentTool", handler)
+	_, err := wrapped(context.Background(), ToolRequest{ToolName: "NonexistentTool"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotDef != nil {
+		t.Fatal("expected Definition to be nil for unknown tool")
+	}
+}
+
+func TestWrapHandler_ResourceKeyExtraction(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:         "GetPatient",
+		InputSchema:  json.RawMessage(`{}`),
+		ResourceKeys: []string{"patient_id", "org_id"},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	var gotKeys map[string]string
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotKeys = req.ResourceKeys
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("GetPatient", handler)
+	args := json.RawMessage(`{"patient_id":"P-123","org_id":"O-456","extra":"ignored"}`)
+	_, err := wrapped(context.Background(), ToolRequest{
+		ToolName:  "GetPatient",
+		Arguments: args,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotKeys == nil {
+		t.Fatal("expected ResourceKeys to be populated")
+	}
+	if gotKeys["patient_id"] != "P-123" {
+		t.Fatalf("expected patient_id='P-123', got %q", gotKeys["patient_id"])
+	}
+	if gotKeys["org_id"] != "O-456" {
+		t.Fatalf("expected org_id='O-456', got %q", gotKeys["org_id"])
+	}
+	if _, ok := gotKeys["extra"]; ok {
+		t.Fatal("unexpected 'extra' in ResourceKeys")
+	}
+}
+
+func TestWrapHandler_ResourceKeyExtraction_NoKeys(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:        "ListPatients",
+		InputSchema: json.RawMessage(`{}`),
+		// No ResourceKeys configured.
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	var gotKeys map[string]string
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotKeys = req.ResourceKeys
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("ListPatients", handler)
+	_, _ = wrapped(context.Background(), ToolRequest{
+		ToolName:  "ListPatients",
+		Arguments: json.RawMessage(`{"page_size":10}`),
+	})
+	if gotKeys != nil {
+		t.Fatal("expected ResourceKeys to be nil when no resource keys configured")
+	}
+}
+
+func TestWrapHandler_ResourceKeyExtraction_MalformedJSON(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:         "GetPatient",
+		InputSchema:  json.RawMessage(`{}`),
+		ResourceKeys: []string{"patient_id"},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	var gotKeys map[string]string
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotKeys = req.ResourceKeys
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("GetPatient", handler)
+	// Malformed JSON — extraction should silently skip.
+	_, err := wrapped(context.Background(), ToolRequest{
+		ToolName:  "GetPatient",
+		Arguments: json.RawMessage(`not valid json`),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotKeys != nil {
+		t.Fatal("expected ResourceKeys to be nil for malformed JSON")
+	}
+}
+
+func TestWrapHandler_ResourceKeyExtraction_EmptyArgs(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:         "GetPatient",
+		InputSchema:  json.RawMessage(`{}`),
+		ResourceKeys: []string{"patient_id"},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	var gotKeys map[string]string
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotKeys = req.ResourceKeys
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("GetPatient", handler)
+
+	// Nil args.
+	_, _ = wrapped(context.Background(), ToolRequest{ToolName: "GetPatient"})
+	if gotKeys != nil {
+		t.Fatal("expected nil ResourceKeys for nil Arguments")
+	}
+
+	// Empty bytes.
+	_, _ = wrapped(context.Background(), ToolRequest{
+		ToolName:  "GetPatient",
+		Arguments: json.RawMessage(``),
+	})
+	if gotKeys != nil {
+		t.Fatal("expected nil ResourceKeys for empty Arguments")
+	}
+}
+
+func TestWrapHandler_ResourceKeyExtraction_NonStringValues(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:         "GetPatient",
+		InputSchema:  json.RawMessage(`{}`),
+		ResourceKeys: []string{"int_field", "bool_field", "null_field", "obj_field", "str_field"},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	var gotKeys map[string]string
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotKeys = req.ResourceKeys
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("GetPatient", handler)
+	args := json.RawMessage(`{"int_field":42,"bool_field":true,"null_field":null,"obj_field":{"nested":1},"str_field":"ok"}`)
+	_, err := wrapped(context.Background(), ToolRequest{
+		ToolName:  "GetPatient",
+		Arguments: args,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Only str_field should be extracted — non-string values silently skipped.
+	if gotKeys == nil {
+		t.Fatal("expected ResourceKeys to be populated")
+	}
+	if gotKeys["str_field"] != "ok" {
+		t.Fatalf("expected str_field='ok', got %q", gotKeys["str_field"])
+	}
+	if _, ok := gotKeys["int_field"]; ok {
+		t.Fatal("int_field should not be in ResourceKeys")
+	}
+	if _, ok := gotKeys["bool_field"]; ok {
+		t.Fatal("bool_field should not be in ResourceKeys")
+	}
+	if _, ok := gotKeys["null_field"]; ok {
+		t.Fatal("null_field should not be in ResourceKeys")
+	}
+	if _, ok := gotKeys["obj_field"]; ok {
+		t.Fatal("obj_field should not be in ResourceKeys")
+	}
+}
+
+func TestWrapHandler_ResourceKeyExtraction_MissingKeyInArgs(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:         "GetPatient",
+		InputSchema:  json.RawMessage(`{}`),
+		ResourceKeys: []string{"patient_id", "org_id"},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	var gotKeys map[string]string
+	cfg := NewConfig(
+		WithToolRegistry(reg),
+		WithMiddleware(ToolInterceptorFunc(
+			func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+				gotKeys = req.ResourceKeys
+				return next(ctx, req)
+			},
+		)),
+	)
+
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	}
+
+	wrapped := cfg.WrapHandler("GetPatient", handler)
+	// Only patient_id present, org_id missing — should extract partial.
+	_, err := wrapped(context.Background(), ToolRequest{
+		ToolName:  "GetPatient",
+		Arguments: json.RawMessage(`{"patient_id":"P-123"}`),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotKeys == nil {
+		t.Fatal("expected ResourceKeys to be populated")
+	}
+	if gotKeys["patient_id"] != "P-123" {
+		t.Fatalf("expected patient_id='P-123', got %q", gotKeys["patient_id"])
+	}
+	if _, ok := gotKeys["org_id"]; ok {
+		t.Fatal("missing org_id should not be in ResourceKeys")
+	}
+}
+
+func TestToolRegistry_LookupDefinition_AnnotationsDefensiveCopy(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name: "Tool1",
+		Annotations: map[string]any{
+			"readOnlyHint": true,
+		},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+	})
+
+	// Get a copy and mutate the Annotations map.
+	got, _ := reg.LookupDefinition("Tool1")
+	got.Annotations["readOnlyHint"] = false
+	got.Annotations["injected"] = "evil"
+
+	// Internal state should be unchanged.
+	got2, _ := reg.LookupDefinition("Tool1")
+	if got2.Annotations["readOnlyHint"] != true {
+		t.Fatal("defensive copy failed: readOnlyHint was mutated")
+	}
+	if _, ok := got2.Annotations["injected"]; ok {
+		t.Fatal("defensive copy failed: injected key appeared in internal state")
+	}
+}

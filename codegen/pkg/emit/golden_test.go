@@ -14,9 +14,9 @@ var update = flag.Bool("update", false, "update golden files")
 
 func TestGoldenFiles(t *testing.T) {
 	tests := []struct {
-		name     string
-		golden   string
-		infos    []ServiceEmitInfo
+		name   string
+		golden string
+		infos  []ServiceEmitInfo
 	}{
 		{
 			name:   "simple_service",

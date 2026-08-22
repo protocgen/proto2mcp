@@ -231,22 +231,22 @@ func TestLintMethod(t *testing.T) {
 				Name: strPtr("TestService"),
 				Method: []*descriptorpb.MethodDescriptorProto{
 					{
-						Name:       strPtr("BidiStream"),
-						InputType:  strPtr(".testpkg.EmptyInput"),
-						OutputType: strPtr(".testpkg.EmptyInput"),
+						Name:            strPtr("BidiStream"),
+						InputType:       strPtr(".testpkg.EmptyInput"),
+						OutputType:      strPtr(".testpkg.EmptyInput"),
 						ClientStreaming: func(b bool) *bool { return &b }(true),
 						ServerStreaming: func(b bool) *bool { return &b }(true),
 					},
 					{
-						Name:       strPtr("ClientStream"),
-						InputType:  strPtr(".testpkg.EmptyInput"),
-						OutputType: strPtr(".testpkg.EmptyInput"),
+						Name:            strPtr("ClientStream"),
+						InputType:       strPtr(".testpkg.EmptyInput"),
+						OutputType:      strPtr(".testpkg.EmptyInput"),
 						ClientStreaming: func(b bool) *bool { return &b }(true),
 					},
 					{
-						Name:       strPtr("ServerStream"),
-						InputType:  strPtr(".testpkg.EmptyInput"),
-						OutputType: strPtr(".testpkg.EmptyInput"),
+						Name:            strPtr("ServerStream"),
+						InputType:       strPtr(".testpkg.EmptyInput"),
+						OutputType:      strPtr(".testpkg.EmptyInput"),
 						ServerStreaming: func(b bool) *bool { return &b }(true),
 					},
 					{
@@ -316,7 +316,7 @@ func TestLintMethod(t *testing.T) {
 			t.Error("expected no description warning")
 		}
 	})
-	
+
 	t.Run("EmptyInputFields", func(t *testing.T) {
 		warns := LintMethod(service.Methods[3])
 		found := false
@@ -342,7 +342,6 @@ func TestLintMethod(t *testing.T) {
 			t.Error("expected large schema warning")
 		}
 	})
-
 
 	t.Run("DeeplyNested", func(t *testing.T) {
 		warns := LintMethod(service.Methods[5])

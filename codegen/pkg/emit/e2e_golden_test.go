@@ -33,9 +33,9 @@ func e2eBuildPlugin(t *testing.T, files ...*descriptorpb.FileDescriptorProto) *p
 	return plugin
 }
 
-func e2eStrPtr(s string) *string                                  { return &s }
-func e2eInt32Ptr(i int32) *int32                                   { return &i }
-func e2eBoolPtr(b bool) *bool                                      { return &b }
+func e2eStrPtr(s string) *string { return &s }
+func e2eInt32Ptr(i int32) *int32 { return &i }
+func e2eBoolPtr(b bool) *bool    { return &b }
 func e2eTypePtr(t descriptorpb.FieldDescriptorProto_Type) *descriptorpb.FieldDescriptorProto_Type {
 	return &t
 }
@@ -47,7 +47,7 @@ func e2eField(name string, num int32, typ descriptorpb.FieldDescriptorProto_Type
 	return &descriptorpb.FieldDescriptorProto{
 		Name: e2eStrPtr(name), Number: e2eInt32Ptr(num),
 		Label: e2eLabelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
-		Type: e2eTypePtr(typ), JsonName: e2eStrPtr(name),
+		Type:  e2eTypePtr(typ), JsonName: e2eStrPtr(name),
 	}
 }
 
@@ -204,29 +204,29 @@ func TestE2EGoldenFiles(t *testing.T) {
 							// Enum field
 							{
 								Name: e2eStrPtr("status"), Number: e2eInt32Ptr(9),
-								Label: e2eLabelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
-								Type: e2eTypePtr(descriptorpb.FieldDescriptorProto_TYPE_ENUM),
+								Label:    e2eLabelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+								Type:     e2eTypePtr(descriptorpb.FieldDescriptorProto_TYPE_ENUM),
 								TypeName: e2eStrPtr(".test.v1.Status"), JsonName: e2eStrPtr("status"),
 							},
 							// Nested message field
 							{
 								Name: e2eStrPtr("address"), Number: e2eInt32Ptr(10),
-								Label: e2eLabelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
-								Type: e2eTypePtr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
+								Label:    e2eLabelPtr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL),
+								Type:     e2eTypePtr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
 								TypeName: e2eStrPtr(".test.v1.Address"), JsonName: e2eStrPtr("address"),
 							},
 							// Repeated string
 							{
 								Name: e2eStrPtr("tags"), Number: e2eInt32Ptr(11),
-								Label: e2eLabelPtr(descriptorpb.FieldDescriptorProto_LABEL_REPEATED),
-								Type: e2eTypePtr(descriptorpb.FieldDescriptorProto_TYPE_STRING),
+								Label:    e2eLabelPtr(descriptorpb.FieldDescriptorProto_LABEL_REPEATED),
+								Type:     e2eTypePtr(descriptorpb.FieldDescriptorProto_TYPE_STRING),
 								JsonName: e2eStrPtr("tags"),
 							},
 							// Map field (references nested MetadataEntry)
 							{
 								Name: e2eStrPtr("metadata"), Number: e2eInt32Ptr(12),
-								Label: e2eLabelPtr(descriptorpb.FieldDescriptorProto_LABEL_REPEATED),
-								Type: e2eTypePtr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
+								Label:    e2eLabelPtr(descriptorpb.FieldDescriptorProto_LABEL_REPEATED),
+								Type:     e2eTypePtr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
 								TypeName: e2eStrPtr(".test.v1.AllTypesRequest.MetadataEntry"), JsonName: e2eStrPtr("metadata"),
 							},
 						},

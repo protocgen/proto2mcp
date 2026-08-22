@@ -11,7 +11,7 @@ import (
 //	}
 func generateHandlerInterface(f *jen.File, info ServiceEmitInfo) {
 	interfaceName := info.Service.Name + "MCPHandler"
-	
+
 	methods := []jen.Code{}
 	for _, t := range info.Tools {
 		method := jen.Id(t.Tool.MethodName).Params(

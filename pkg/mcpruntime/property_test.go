@@ -1,6 +1,7 @@
 package mcpruntime
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -127,4 +128,147 @@ func TestProperty_UnmarshalToolInput_InvalidJSON_AlwaysErrors(t *testing.T) {
 			}
 		}
 	}, hegel.WithTestCases(200))
+}
+
+// ============================================================================
+// Property-Based Tests: Resource Key Extraction
+// ============================================================================
+
+func TestProperty_ResourceKeyExtraction_NeverPanics(t *testing.T) {
+	hegel.Test(t, func(ht *hegel.T) {
+		// Generate random resource key names.
+		numKeys := hegel.Draw(ht, hegel.Integers(0, 5))
+		keys := make([]string, numKeys)
+		for i := range numKeys {
+			keys[i] = hegel.Draw(ht, hegel.Text().Alphabet("abcdefghijklmnopqrstuvwxyz_").MinSize(1).MaxSize(15))
+		}
+
+		reg := NewToolRegistry()
+		reg.Register(ToolDefinition{
+			Name:         "TestTool",
+			InputSchema:  json.RawMessage(`{}`),
+			ResourceKeys: keys,
+		}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+			return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+		})
+
+		cfg := NewConfig(WithToolRegistry(reg))
+		handler := cfg.WrapHandler("TestTool", func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+			return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+		})
+
+		// Generate random argument payloads.
+		argType := hegel.Draw(ht, hegel.Integers(0, 4))
+		var args json.RawMessage
+		switch argType {
+		case 0:
+			args = nil
+		case 1:
+			args = json.RawMessage(`{}`)
+		case 2:
+			// Random garbage.
+			args = json.RawMessage(hegel.Draw(ht, hegel.Text().MaxSize(50)))
+		case 3:
+			// Valid JSON object with random string values.
+			fields := make(map[string]string)
+			numFields := hegel.Draw(ht, hegel.Integers(0, 5))
+			for range numFields {
+				k := hegel.Draw(ht, hegel.Text().Alphabet("abcdefghijklmnopqrstuvwxyz_").MinSize(1).MaxSize(10))
+				v := hegel.Draw(ht, hegel.Text().MaxSize(20))
+				fields[k] = v
+			}
+			b, _ := json.Marshal(fields)
+			args = b
+		case 4:
+			// Valid JSON with mixed types.
+			mixed := map[string]any{
+				"str":  "hello",
+				"num":  42,
+				"bool": true,
+				"null": nil,
+			}
+			b, _ := json.Marshal(mixed)
+			args = b
+		}
+
+		// Property: WrapHandler NEVER panics regardless of input.
+		result, err := handler(context.Background(), ToolRequest{
+			ToolName:  "TestTool",
+			Arguments: args,
+		})
+
+		// Property: no error is returned.
+		if err != nil {
+			ht.Fatalf("unexpected error: %v", err)
+		}
+		if result == nil {
+			ht.Fatal("expected non-nil result")
+		}
+	}, hegel.WithTestCases(500))
+}
+
+func TestProperty_ResourceKeyExtraction_SubsetInvariant(t *testing.T) {
+	hegel.Test(t, func(ht *hegel.T) {
+		// Generate configured resource key names.
+		numKeys := hegel.Draw(ht, hegel.Integers(1, 5))
+		configuredKeys := make([]string, numKeys)
+		keySet := make(map[string]bool, numKeys)
+		for i := range numKeys {
+			k := hegel.Draw(ht, hegel.Text().Alphabet("abcdefghijklmnopqrstuvwxyz").MinSize(1).MaxSize(10))
+			configuredKeys[i] = k
+			keySet[k] = true
+		}
+
+		reg := NewToolRegistry()
+		reg.Register(ToolDefinition{
+			Name:         "TestTool",
+			InputSchema:  json.RawMessage(`{}`),
+			ResourceKeys: configuredKeys,
+		}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+			return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+		})
+
+		var gotKeys map[string]string
+		cfg := NewConfig(
+			WithToolRegistry(reg),
+			WithMiddleware(ToolInterceptorFunc(
+				func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+					gotKeys = req.ResourceKeys
+					return next(ctx, req)
+				},
+			)),
+		)
+
+		// Generate args with a mix of configured and extra keys.
+		fields := make(map[string]string)
+		numFields := hegel.Draw(ht, hegel.Integers(1, 8))
+		for range numFields {
+			k := hegel.Draw(ht, hegel.Text().Alphabet("abcdefghijklmnopqrstuvwxyz").MinSize(1).MaxSize(10))
+			v := hegel.Draw(ht, hegel.Text().MaxSize(20))
+			fields[k] = v
+		}
+		argsBytes, _ := json.Marshal(fields)
+
+		handler := cfg.WrapHandler("TestTool", func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+			return &CallToolResult{Content: json.RawMessage(`{}`), IsError: false}, nil
+		})
+		_, _ = handler(context.Background(), ToolRequest{
+			ToolName:  "TestTool",
+			Arguments: argsBytes,
+		})
+
+		// Property: every extracted key is in the configured set.
+		for k := range gotKeys {
+			if !keySet[k] {
+				ht.Fatalf("extracted key %q not in configured set %v", k, configuredKeys)
+			}
+		}
+
+		// Property: every extracted value matches the original args.
+		for k, v := range gotKeys {
+			if fields[k] != v {
+				ht.Fatalf("key %q: extracted %q but args had %q", k, v, fields[k])
+			}
+		}
+	}, hegel.WithTestCases(500))
 }

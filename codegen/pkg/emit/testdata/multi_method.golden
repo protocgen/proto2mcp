@@ -31,6 +31,9 @@ const OrderService_CancelOrderDescription = "Cancel an existing order"
 var OrderService_CancelOrderSchema = []byte("{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"string\"},\"reason\":{\"type\":\"string\"}}}")
 
 func RegisterOrderServiceMCP(registry mcpruntime.Registry, handler OrderServiceMCPHandler, opts ...mcpruntime.Option) {
+	if tr, ok := registry.(*mcpruntime.ToolRegistry); ok {
+		opts = append([]mcpruntime.Option{mcpruntime.WithToolRegistry(tr)}, opts...)
+	}
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{

@@ -60,6 +60,9 @@ type ToolIR struct {
 	SubTools []ToolRef
 	// MacroType classifies how a macro-tool executes (V3).
 	MacroType MacroType
+	// ResourceKeys lists JSON field names annotated with resource_key = true.
+	// Used by generated code to populate ToolDefinition.ResourceKeys.
+	ResourceKeys []string
 	// Warnings contains any LLM Linter warnings.
 	Warnings []Warning
 }

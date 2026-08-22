@@ -18,6 +18,10 @@ extend google.protobuf.FileOptions {
   FileMCPOptions file = 1181;
 }
 
+extend google.protobuf.FieldOptions {
+  FieldMCPOptions field = 1182;
+}
+
 enum FailureStrategy {
   FAILURE_STRATEGY_UNSPECIFIED = 0;
   FAILURE_STRATEGY_FAIL_FAST = 1;
@@ -70,4 +74,16 @@ message FileMCPOptions {
   // prompt might use tools from PatientService, BillingService, and
   // NotificationService). File-level scope allows this naturally.
   repeated PromptTemplate prompts = 10;
+}
+
+// FieldMCPOptions configures MCP behavior for individual proto fields.
+// Applied via: extend google.protobuf.FieldOptions { FieldMCPOptions field = 1182; }
+message FieldMCPOptions {
+  // resource_key marks this field as a resource identifier.
+  // Fields annotated with resource_key = true have their values
+  // extracted into ToolRequest.ResourceKeys before middleware runs,
+  // enabling ABAC authorization without manual argument parsing.
+  // Only string fields are supported; non-string fields generate
+  // a linter warning.
+  bool resource_key = 1;
 }

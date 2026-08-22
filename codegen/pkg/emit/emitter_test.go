@@ -11,8 +11,8 @@ import (
 func testServiceEmitInfo() ServiceEmitInfo {
 	return ServiceEmitInfo{
 		Service: extract.ServiceIR{
-			Name:     "PatientService",
-			FullName: "myapp.v1.PatientService",
+			Name:        "PatientService",
+			FullName:    "myapp.v1.PatientService",
 			Description: "Manages patient records",
 		},
 		Tools: []ToolEmitInfo{
@@ -293,7 +293,7 @@ func TestGenerateFile_LargeSchema(t *testing.T) {
 		}
 	}
 	largeSchema += `}}`
-	
+
 	info.Tools[0].Tool.InputSchema = []byte(largeSchema)
 	f := GenerateFile([]ServiceEmitInfo{info})
 

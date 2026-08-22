@@ -7,10 +7,10 @@ import (
 
 func TestValidateToolName(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		wantErr  bool
-		wantMsg  string
+		name    string
+		input   string
+		wantErr bool
+		wantMsg string
 	}{
 		{
 			name:  "valid simple name",

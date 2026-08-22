@@ -36,8 +36,6 @@ func NewErrorResultWithDetails(msg, code string, violations []string) *CallToolR
 	}
 }
 
-
-
 // Patterns that indicate internal implementation details that must not
 // be leaked to LLMs. Compiled once at package init time.
 var (
@@ -87,8 +85,6 @@ func sanitizeErrorMessage(msg string) string {
 
 	return msg
 }
-
-
 
 // InvalidParamsError creates a CallToolResult for invalid input parameters.
 func InvalidParamsError(err error) *CallToolResult {

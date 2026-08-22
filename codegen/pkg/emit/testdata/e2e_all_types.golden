@@ -18,6 +18,9 @@ const AllTypesService_ProcessAllTypesDescription = ""
 var AllTypesService_ProcessAllTypesSchema = []byte("{\"type\":\"object\",\"properties\":{\"address\":{\"additionalProperties\":false,\"properties\":{\"street\":{\"type\":\"string\"},\"zip\":{\"type\":\"string\"}},\"title\":\"Address\",\"type\":\"object\"},\"bool_field\":{\"type\":\"boolean\"},\"bytes_field\":{\"description\":\"(binary data serialized as base64-encoded string)\",\"format\":\"byte\",\"type\":\"string\"},\"double_field\":{\"type\":\"number\"},\"float_field\":{\"type\":\"number\"},\"int32_field\":{\"type\":\"integer\"},\"int64_field\":{\"description\":\"(serialized as string for 64-bit precision)\",\"format\":\"int64\",\"type\":\"string\"},\"metadata\":{\"additionalProperties\":{\"type\":\"string\"},\"type\":\"object\"},\"status\":{\"enum\":[\"STATUS_UNSPECIFIED\",\"STATUS_ACTIVE\",\"STATUS_INACTIVE\"],\"type\":\"string\"},\"str_field\":{\"type\":\"string\"},\"tags\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"uint32_field\":{\"type\":\"integer\"}},\"additionalProperties\":false}")
 
 func RegisterAllTypesServiceMCP(registry mcpruntime.Registry, handler AllTypesServiceMCPHandler, opts ...mcpruntime.Option) {
+	if tr, ok := registry.(*mcpruntime.ToolRegistry); ok {
+		opts = append([]mcpruntime.Option{mcpruntime.WithToolRegistry(tr)}, opts...)
+	}
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{

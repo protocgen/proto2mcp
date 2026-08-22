@@ -19,6 +19,9 @@ const ComplexService_DoComplexDescription = "Does complex things"
 var ComplexService_DoComplexSchema = []byte("{\"type\":\"object\",\"properties\":{\"string_field\":{\"type\":\"string\"},\"int_field\":{\"type\":\"integer\"},\"bool_field\":{\"type\":\"boolean\"},\"array_field\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"object_field\":{\"type\":\"object\",\"properties\":{\"nested\":{\"type\":\"string\"}}}}}")
 
 func RegisterComplexServiceMCP(registry mcpruntime.Registry, handler ComplexServiceMCPHandler, opts ...mcpruntime.Option) {
+	if tr, ok := registry.(*mcpruntime.ToolRegistry); ok {
+		opts = append([]mcpruntime.Option{mcpruntime.WithToolRegistry(tr)}, opts...)
+	}
 	cfg := mcpruntime.NewConfig(opts...)
 
 	registry.Register(mcpruntime.ToolDefinition{

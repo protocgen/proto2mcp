@@ -109,13 +109,13 @@ func TestMarshalSchemaFields(t *testing.T) {
 					t.Fatalf("MarshalSchemaFields() returned invalid JSON: %v, output: %s", err, string(got))
 				}
 
-				// to compare, we can use string comparison if we marshal standard ways, 
+				// to compare, we can use string comparison if we marshal standard ways,
 				// or just use json.RawMessage comparison, or compare as map
 				var wantMap map[string]any
 				if err := json.Unmarshal([]byte(tt.want), &wantMap); err != nil {
 					t.Fatalf("invalid want JSON: %v", err)
 				}
-				
+
 				// doing simple string compare could fail due to map ordering,
 				// so let's unmarshal and remarshal both, or use map comparison
 				gotBytes, _ := json.Marshal(js)
