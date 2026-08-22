@@ -19,7 +19,11 @@ install: ## Install the plugin to $GOPATH/bin
 # ──────────────────────────────────────────────
 
 .PHONY: test
-test: ## Run all tests with race detector (both modules)
+test: ## Run all tests (cached, parallel — fast for pre-push)
+	go test -race ./... & cd codegen && go test -race ./... & wait
+
+.PHONY: test-ci
+test-ci: ## Run all tests with race detector, no cache (CI)
 	go test -race -count=1 ./...
 	cd codegen && go test -race -count=1 ./...
 
@@ -102,7 +106,7 @@ hygiene: ## Run file hygiene checks (editorconfig)
 # ──────────────────────────────────────────────
 
 .PHONY: ci
-ci: lint test build hygiene ## Run full CI pipeline locally (lint + test + build + hygiene)
+ci: lint test-ci build hygiene ## Run full CI pipeline locally (lint + test + build + hygiene)
 
 # ──────────────────────────────────────────────
 # Help
