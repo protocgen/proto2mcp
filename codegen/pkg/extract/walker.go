@@ -86,6 +86,10 @@ func ExtractFile(file *protogen.File) (*FileIR, error) {
 		Skip:     false,
 	}
 
+	if fOpts != nil {
+		ir.Prompts = fOpts.Prompts
+	}
+
 	for _, svc := range file.Services {
 		svcOpts := readServiceOptions(svc)
 		prefix := ""
@@ -249,7 +253,8 @@ type serviceOptions struct {
 }
 
 type fileOptions struct {
-	Skip bool
+	Skip    bool
+	Prompts []PromptIR
 }
 
 func readMethodOptions(method *protogen.Method) *methodOptions {
@@ -336,8 +341,48 @@ func readFileOptions(file *protogen.File) *fileOptions {
 			fOpts = &fileOptions{}
 			msg := v.Message()
 			msg.Range(func(subFd protoreflect.FieldDescriptor, subV protoreflect.Value) bool {
-				if subFd.Number() == 1 {
+				switch subFd.Number() {
+				case 1:
 					fOpts.Skip = subV.Bool()
+				case 10:
+					list := subV.List()
+					for i := 0; i < list.Len(); i++ {
+						item := list.Get(i).Message()
+						var p PromptIR
+						item.Range(func(pFd protoreflect.FieldDescriptor, pV protoreflect.Value) bool {
+							switch pFd.Number() {
+							case 1:
+								p.Name = pV.String()
+							case 2:
+								p.Description = pV.String()
+							case 3:
+								tList := pV.List()
+								for j := 0; j < tList.Len(); j++ {
+									p.Tools = append(p.Tools, tList.Get(j).String())
+								}
+							case 4:
+								aList := pV.List()
+								for j := 0; j < aList.Len(); j++ {
+									argItem := aList.Get(j).Message()
+									var arg PromptArgIR
+									argItem.Range(func(aFd protoreflect.FieldDescriptor, aV protoreflect.Value) bool {
+										switch aFd.Number() {
+										case 1:
+											arg.Name = aV.String()
+										case 2:
+											arg.Description = aV.String()
+										case 3:
+											arg.Required = aV.Bool()
+										}
+										return true
+									})
+									p.Arguments = append(p.Arguments, arg)
+								}
+							}
+							return true
+						})
+						fOpts.Prompts = append(fOpts.Prompts, p)
+					}
 				}
 				return true
 			})

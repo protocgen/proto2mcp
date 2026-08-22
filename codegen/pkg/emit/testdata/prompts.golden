@@ -1,0 +1,27 @@
+package generated
+
+import (
+	"context"
+	mcpruntime "github.com/protocgen/proto2mcp/pkg/mcpruntime"
+)
+
+// OnboardPatientPromptHandler is the interface for the OnboardPatient prompt template.
+type OnboardPatientPromptHandler interface {
+	HandleOnboardPatient(ctx context.Context, arguments map[string]string) (*mcpruntime.GetPromptResult, error)
+}
+
+// RegisterPatientPrompts registers all prompt templates.
+func RegisterPatientPrompts(registry mcpruntime.PromptRegistrar, handlerOnboardPatient OnboardPatientPromptHandler) {
+	registry.RegisterPrompt(mcpruntime.PromptDefinition{
+		Arguments: []mcpruntime.PromptArgument{mcpruntime.PromptArgument{
+			Description: "Name of the patient",
+			Name:        "patient_name",
+			Required:    true,
+		}, mcpruntime.PromptArgument{
+			Description: "Insurance ID",
+			Name:        "insurance_id",
+		}},
+		Description: "Onboard a new patient",
+		Name:        "OnboardPatient",
+	}, handlerOnboardPatient.HandleOnboardPatient)
+}

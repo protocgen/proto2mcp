@@ -58,6 +58,13 @@ message PromptTemplate {
   string name = 1;
   string description = 2;
   repeated string tools = 3; // tool names this prompt uses
+  repeated PromptArgument arguments = 4; // explicitly declared arguments
+}
+
+message PromptArgument {
+  string name = 1;
+  string description = 2;
+  bool required = 3;
 }
 
 message ServiceMCPOptions {
