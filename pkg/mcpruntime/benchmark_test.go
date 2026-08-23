@@ -1,6 +1,9 @@
 package mcpruntime
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -69,4 +72,102 @@ func BenchmarkSanitizeErrorMessage(b *testing.B) {
 			_ = sanitizeErrorMessage(long)
 		}
 	})
+}
+
+func BenchmarkWrapHandler(b *testing.B) {
+	config := NewConfig(
+		WithMiddleware(ToolInterceptorFunc(func(ctx context.Context, req ToolRequest, next HandlerFunc) (*CallToolResult, error) {
+			return next(ctx, req)
+		})),
+	)
+	handler := config.WrapHandler("TestTool", func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`)}, nil
+	})
+	req := ToolRequest{ToolName: "TestTool", Arguments: json.RawMessage(`{}`)}
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handler(ctx, req)
+	}
+}
+
+func BenchmarkWrapHandler_WithRegistry(b *testing.B) {
+	reg := NewToolRegistry()
+	reg.Register(ToolDefinition{
+		Name:         "TestTool",
+		InputSchema:  json.RawMessage(`{}`),
+		ResourceKeys: []string{"id"},
+	}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`)}, nil
+	})
+	config := NewConfig(WithToolRegistry(reg))
+	handler := config.WrapHandler("TestTool", func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`)}, nil
+	})
+	req := ToolRequest{
+		ToolName:  "TestTool",
+		Arguments: json.RawMessage(`{"id": "abc123"}`),
+	}
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handler(ctx, req)
+	}
+}
+
+func BenchmarkFilteredTools(b *testing.B) {
+	reg := NewToolRegistry()
+	for i := 0; i < 50; i++ {
+		name := fmt.Sprintf("Tool_%d", i)
+		reg.Register(ToolDefinition{
+			Name:        name,
+			InputSchema: json.RawMessage(`{}`),
+		}, func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+			return &CallToolResult{Content: json.RawMessage(`{}`)}, nil
+		})
+	}
+	filter := DiscoveryInterceptorFunc(func(ctx context.Context, tools []ToolDefinition) []ToolDefinition {
+		if len(tools) > 25 {
+			return tools[:25]
+		}
+		return tools
+	})
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		reg.FilteredTools(ctx, filter)
+	}
+}
+
+func BenchmarkRateLimiter(b *testing.B) {
+	rl := NewRateLimiter(1000000, 1000000)
+	ctx := WithTenant(context.Background(), "tenant-1")
+	handler := func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+		return &CallToolResult{Content: json.RawMessage(`{}`)}, nil
+	}
+	req := ToolRequest{ToolName: "TestTool"}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rl.HandleToolCall(ctx, req, handler)
+	}
+}
+
+func BenchmarkToolRegistry_Lookup(b *testing.B) {
+	reg := NewToolRegistry()
+	for i := 0; i < 100; i++ {
+		name := fmt.Sprintf("Service_Tool_%d", i)
+		reg.Register(ToolDefinition{Name: name, InputSchema: json.RawMessage(`{}`)},
+			func(ctx context.Context, req ToolRequest) (*CallToolResult, error) {
+				return &CallToolResult{Content: json.RawMessage(`{}`)}, nil
+			})
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		reg.Lookup("Service_Tool_50")
+	}
 }
