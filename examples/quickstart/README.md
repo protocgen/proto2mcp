@@ -29,7 +29,9 @@ curl -s localhost:8080 -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params
 
 ## Use with Claude Desktop
 
-Add to your Claude Desktop config (`~/.config/claude/claude_desktop_config.json` on macOS/Linux):
+Add to your Claude Desktop config:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/claude/claude_desktop_config.json`
 
 ```json
 {

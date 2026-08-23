@@ -37,7 +37,7 @@ func registerTodoTools(registry *mcpruntime.ToolRegistry) {
 			},
 			"required": ["title"]
 		}`),
-		Annotations: map[string]any{"destructiveHint": true},
+		Annotations: map[string]any{"destructiveHint": false},
 	}, handleCreateTodo)
 
 	registry.Register(mcpruntime.ToolDefinition{

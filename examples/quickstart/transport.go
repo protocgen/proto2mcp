@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -12,9 +11,14 @@ import (
 // jsonRPCRequest represents a JSON-RPC 2.0 request.
 type jsonRPCRequest struct {
 	JSONRPC string          `json:"jsonrpc"`
-	ID      json.RawMessage `json:"id"`
+	ID      json.RawMessage `json:"id,omitempty"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params,omitempty"`
+}
+
+// isNotification returns true if this is a JSON-RPC 2.0 notification (no id).
+func (r *jsonRPCRequest) isNotification() bool {
+	return len(r.ID) == 0 || string(r.ID) == "null"
 }
 
 // jsonRPCResponse represents a JSON-RPC 2.0 response.
@@ -62,6 +66,9 @@ type mcpContent struct {
 	Text string `json:"text"`
 }
 
+// maxRequestBody is the maximum allowed request body size (1MB).
+const maxRequestBody = 1 << 20
+
 // NewMCPHandler creates an HTTP handler that serves the MCP JSON-RPC protocol.
 // This is a minimal reference implementation — for production use, consider
 // a full MCP framework like mcp-go.
@@ -72,9 +79,13 @@ func NewMCPHandler(registry *mcpruntime.ToolRegistry) http.Handler {
 			return
 		}
 
+		// Limit request body to prevent OOM from oversized payloads.
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+		defer r.Body.Close()
+
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "failed to read body", http.StatusBadRequest)
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
 
@@ -88,6 +99,12 @@ func NewMCPHandler(registry *mcpruntime.ToolRegistry) http.Handler {
 			return
 		}
 
+		// JSON-RPC 2.0: notifications (no id) must not receive a response.
+		if req.isNotification() {
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+
 		var resp jsonRPCResponse
 		resp.JSONRPC = "2.0"
 		resp.ID = req.ID
@@ -95,7 +112,7 @@ func NewMCPHandler(registry *mcpruntime.ToolRegistry) http.Handler {
 		switch req.Method {
 		case "initialize":
 			resp.Result = map[string]any{
-				"protocolVersion": "2025-03-26",
+				"protocolVersion": "2026-07-28",
 				"capabilities": map[string]any{
 					"tools": map[string]any{},
 				},
@@ -104,6 +121,9 @@ func NewMCPHandler(registry *mcpruntime.ToolRegistry) http.Handler {
 					"version": "0.1.0",
 				},
 			}
+
+		case "ping":
+			resp.Result = map[string]any{}
 
 		case "tools/list":
 			defs := registry.Tools()
@@ -128,7 +148,7 @@ func NewMCPHandler(registry *mcpruntime.ToolRegistry) http.Handler {
 
 			handler, ok := registry.Lookup(params.Name)
 			if !ok {
-				resp.Error = &jsonRPCError{Code: -32602, Message: fmt.Sprintf("unknown tool: %s", params.Name)}
+				resp.Error = &jsonRPCError{Code: -32602, Message: "unknown tool"}
 				writeJSON(w, resp)
 				return
 			}
@@ -154,7 +174,7 @@ func NewMCPHandler(registry *mcpruntime.ToolRegistry) http.Handler {
 			}
 
 		default:
-			resp.Error = &jsonRPCError{Code: -32601, Message: fmt.Sprintf("method not found: %s", req.Method)}
+			resp.Error = &jsonRPCError{Code: -32601, Message: "method not found"}
 		}
 
 		writeJSON(w, resp)
