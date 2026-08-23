@@ -50,6 +50,8 @@ RegisterPatientServiceMCP(registry, myHandler)
 
 Both implement the same TodoService — compare them to see what codegen gives you.
 
+See also [`examples/connectrpc-bridge/`](examples/connectrpc-bridge/) for forwarding MCP calls to existing ConnectRPC backends.
+
 ## Features
 
 - **Type-safe**: Generated handler interfaces match your proto definitions exactly.

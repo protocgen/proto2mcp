@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.12.3
+
+### Fixed
+
+- **`truncateUTF8` produced invalid UTF-8** when input contained pre-existing invalid bytes (e.g., lone `\xe6` lead byte from untrusted tenant IDs). Found by fuzz testing. Fixed by sanitizing with `strings.ToValidUTF8` before truncation (#126)
+
+### Added
+
+- **Fuzz tests** — 4 fuzz targets covering security-sensitive parsing: `sanitizeErrorMessage`, `truncateUTF8`, `UnmarshalToolInput`, resource key extraction. Crash corpus committed as regression test (#126)
+- **Proto-driven quickstart** (`examples/proto-quickstart/`) — full codegen workflow: `.proto` → `buf generate` → implement generated interface → serve. Same TodoService as quickstart for direct comparison (#126)
+
+## v0.12.2
+
+### Added
+
+- **E2E codegen test** — full pipeline: construct IR → `GenerateFile` + `GeneratePrompts` → parse with `go/parser` → assert symbols (#125)
+- **Runtime benchmarks** — WrapHandler (34ns), FilteredTools (1.7µs), RateLimiter (224ns), Lookup (26ns/0 allocs), proto marshal/unmarshal, error sanitization (#125)
+
+## v0.12.1
+
+### Added
+
+- **Quickstart example** (`examples/quickstart/`) — runnable MCP server in 3 files, zero external deps (#123)
+- **Authorization patterns guide** (`docs/authorization.md`) — 3-tier auth guide with transport/tool layer boundary (#122)
+- **Proto Generate CI job** — `buf generate` + compile verification in CI (#121)
+
 ## v0.12.0
 
 ### Added
