@@ -1,9 +1,10 @@
 version: 2
 
+project_name: protoc-gen-proto2mcp
+
 before:
   hooks:
     - go mod tidy
-    - sh -c "cd codegen && go mod tidy"
 
 builds:
   - id: protoc-gen-proto2mcp
@@ -22,24 +23,25 @@ builds:
     ldflags:
       - -s -w
 
+dockers:
+  - image_templates:
+      - "ghcr.io/protocgen/proto2mcp:{{ .Tag }}"
+      - "ghcr.io/protocgen/proto2mcp:latest"
+    dockerfile: Dockerfile.goreleaser
+    build_flag_templates:
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+
 archives:
-  - formats: [tar.gz]
-    name_template: >-
-      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+  - format: tar.gz
     format_overrides:
       - goos: windows
-        formats: [zip]
+        format: zip
 
 checksum:
   name_template: checksums.txt
 
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-
-sboms:
-  - artifacts: archive
+  use: github-native

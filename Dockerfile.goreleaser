@@ -1,0 +1,3 @@
+FROM gcr.io/distroless/static-debian12
+COPY protoc-gen-proto2mcp /usr/local/bin/protoc-gen-proto2mcp
+ENTRYPOINT ["/usr/local/bin/protoc-gen-proto2mcp"]
