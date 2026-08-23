@@ -46,7 +46,7 @@ RegisterPatientServiceMCP(registry, myHandler)
 | Example | What it shows | How to run |
 |---------|--------------|------------|
 | [`examples/quickstart/`](examples/quickstart/) | Manual tool registration, zero deps | `cd examples/quickstart && go run .` |
-| [`examples/proto-quickstart/`](examples/proto-quickstart/) | Full codegen: `.proto` → `buf generate` → serve | `cd examples/proto-quickstart && go run .` |
+| [`examples/proto-quickstart/`](examples/proto-quickstart/) | Proto codegen (generated code pre-committed) | `cd examples/proto-quickstart && go run .` |
 
 Both implement the same TodoService — compare them to see what codegen gives you.
 
