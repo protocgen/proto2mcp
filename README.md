@@ -255,7 +255,9 @@ RegisterPatientServiceMCP(registry, handler, mcpruntime.WithMetrics(metrics))
 
 ## Security
 
-proto2mcp includes several security features for production deployments:
+proto2mcp operates at the **tool authorization layer** — controlling which tools an authenticated agent can call and with what arguments. It does not handle transport-level authentication (OAuth 2.1, HTTP sessions); use your MCP server framework for that.
+
+For a comprehensive guide covering tool allowlists, JWT/RBAC, macaroon/biscuit capability tokens, and a production security checklist, see **[docs/authorization.md](docs/authorization.md)**.
 
 ### Tool Filtering
 
