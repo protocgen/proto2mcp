@@ -4,7 +4,7 @@ Forward MCP tool calls to existing ConnectRPC backends — zero business logic r
 
 ## Architecture
 
-```
+```text
 MCP Client (Claude) → MCP Server → ForwardToConnect → ConnectRPC Backend
 ```
 
@@ -18,7 +18,9 @@ package example.patient.v1;
 import "protocgen/mcp/v1/options.proto";
 
 service PatientService {
-  option (protocgen.mcp.v1.service_mcp) = {};
+  option (protocgen.mcp.v1.service_mcp) = {
+    generate_connect: true
+  };
 
   rpc GetPatient(GetPatientRequest) returns (GetPatientResponse) {
     option (protocgen.mcp.v1.method_mcp) = {

@@ -47,9 +47,10 @@ RegisterPatientServiceMCP(registry, myHandler)
 |---------|--------------|------------|
 | [`examples/quickstart/`](examples/quickstart/) | Manual tool registration, zero deps | `cd examples/quickstart && go run .` |
 | [`examples/proto-quickstart/`](examples/proto-quickstart/) | Proto codegen (generated code pre-committed) | `cd examples/proto-quickstart && go run .` |
-| [`examples/connectrpc-bridge/`](examples/connectrpc-bridge/) | Forward to existing ConnectRPC backends | Documentation example |
 
 Both implement the same TodoService — compare them to see what codegen gives you.
+
+See also [`examples/connectrpc-bridge/`](examples/connectrpc-bridge/) for forwarding MCP calls to existing ConnectRPC backends.
 
 ## Features
 

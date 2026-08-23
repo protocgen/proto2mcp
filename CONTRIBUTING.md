@@ -29,7 +29,7 @@ Alternatively, you can manually install the required tools:
 
 ## Project Structure
 
-```
+```text
 pkg/mcpruntime/           # Runtime library (registry, middleware, metrics)
 pkg/mcpruntime/connectbridge/  # ConnectRPC error mapping
 codegen/                   # protoc-gen-proto2mcp plugin (separate go.mod)
