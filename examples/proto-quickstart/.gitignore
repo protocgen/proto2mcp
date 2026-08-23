@@ -1,0 +1,3 @@
+# Proto-quickstart includes generated code so users can clone and run without buf.
+!gen/
+proto-quickstart

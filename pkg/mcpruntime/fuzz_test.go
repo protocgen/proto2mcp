@@ -2,7 +2,9 @@ package mcpruntime
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -40,6 +42,10 @@ func FuzzSanitizeErrorMessage(f *testing.F) {
 	f.Add("timeout connecting to database-host.internal:3306")
 	f.Add("")
 	f.Add("a]]]long string that is over two hundred characters long and should be truncated by the sanitizer to ensure we never leak excessive information in error messages returned to clients which could be a security concern")
+	f.Add("goroutine 1 [running]: runtime.panic")
+	f.Add(string(make([]byte, 1000)))
+	f.Add("line1\nline2\ngoroutine")
+	f.Add("\x00\xff\xfe")
 
 	f.Fuzz(func(t *testing.T, msg string) {
 		result := sanitizeErrorMessage(msg)
@@ -47,6 +53,32 @@ func FuzzSanitizeErrorMessage(f *testing.F) {
 		// Property: result must never exceed 200 characters
 		if len(result) > 200 {
 			t.Errorf("sanitized message exceeds 200 chars: got %d", len(result))
+		}
+		// Should never contain newlines
+		if strings.Contains(result, "\n") {
+			t.Errorf("result contains newline")
+		}
+	})
+}
+
+// FuzzTruncateUTF8 ensures truncation never breaks UTF-8 runes.
+func FuzzTruncateUTF8(f *testing.F) {
+	f.Add("hello", 3)
+	f.Add("日本語テスト", 6)
+	f.Add("emoji 🎉🎊", 10)
+	f.Add("", 0)
+	f.Add("abc", 100)
+
+	f.Fuzz(func(t *testing.T, s string, maxBytes int) {
+		if maxBytes < 0 {
+			return // skip negative
+		}
+		result := truncateUTF8(s, maxBytes)
+		if len(result) > maxBytes {
+			t.Errorf("result %d bytes exceeds max %d", len(result), maxBytes)
+		}
+		if !utf8.ValidString(result) {
+			t.Errorf("result is not valid UTF-8: %q", result)
 		}
 	})
 }
@@ -66,6 +98,7 @@ func FuzzResourceKeyExtraction(f *testing.F) {
 	f.Add([]byte(`not json`))
 	f.Add([]byte(``))
 	f.Add([]byte(`{"patient_id":"","org_id":"O-1"}`))
+	f.Add([]byte{0xff})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		reg := NewToolRegistry()

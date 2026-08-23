@@ -3,6 +3,7 @@ package mcpruntime
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -64,14 +65,27 @@ func NewBoundedMetrics(meter metric.Meter, validTools []string) (*Metrics, error
 }
 
 func truncateUTF8(s string, maxBytes int) string {
+	// Strip any invalid UTF-8 sequences first (e.g., from untrusted input).
+	s = strings.ToValidUTF8(s, "")
 	if len(s) <= maxBytes {
 		return s
 	}
-	// Find last valid rune boundary at or before maxBytes
-	for maxBytes > 0 && !utf8.RuneStart(s[maxBytes]) {
-		maxBytes--
+	// Truncate and back up to the last complete rune boundary.
+	s = s[:maxBytes]
+	// Since the input is now valid UTF-8, the only issue is a partial
+	// rune at the end from the byte-level truncation.
+	for i := len(s) - 1; i >= 0; i-- {
+		if utf8.RuneStart(s[i]) {
+			// Found the start of the last rune — check if it's complete.
+			r, size := utf8.DecodeRuneInString(s[i:])
+			if r == utf8.RuneError && size == 1 {
+				// Incomplete rune — truncate before it.
+				return s[:i]
+			}
+			return s
+		}
 	}
-	return s[:maxBytes]
+	return ""
 }
 
 // RecordToolCall records a tool call metric.
