@@ -184,6 +184,27 @@ jobs:
         run: cd codegen && govulncheck ./...
         continue-on-error: true
 
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.25'
+      - name: Go mod download
+        run: go mod download
+      - name: FuzzSanitizeErrorMessage
+        run: go test -fuzz=FuzzSanitizeErrorMessage -fuzztime=10s ./pkg/mcpruntime/
+      - name: FuzzTruncateUTF8
+        run: go test -fuzz=FuzzTruncateUTF8 -fuzztime=10s ./pkg/mcpruntime/
+      - name: FuzzUnmarshalToolInput
+        run: go test -fuzz=FuzzUnmarshalToolInput -fuzztime=10s ./pkg/mcpruntime/
+      - name: FuzzResourceKeyExtraction
+        run: go test -fuzz=FuzzResourceKeyExtraction -fuzztime=10s ./pkg/mcpruntime/
+
   file-hygiene:
     name: File Hygiene
     runs-on: ubuntu-latest
