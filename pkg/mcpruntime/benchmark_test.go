@@ -88,7 +88,7 @@ func BenchmarkWrapHandler(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		handler(ctx, req)
+		_, _ = handler(ctx, req)
 	}
 }
 
@@ -113,7 +113,7 @@ func BenchmarkWrapHandler_WithRegistry(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		handler(ctx, req)
+		_, _ = handler(ctx, req)
 	}
 }
 
@@ -152,7 +152,7 @@ func BenchmarkRateLimiter(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rl.HandleToolCall(ctx, req, handler)
+		_, _ = rl.HandleToolCall(ctx, req, handler)
 	}
 }
 
