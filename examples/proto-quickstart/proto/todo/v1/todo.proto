@@ -1,0 +1,75 @@
+syntax = "proto3";
+package todo.v1;
+
+option go_package = "github.com/protocgen/proto2mcp/examples/proto-quickstart/gen/todo/v1";
+
+import "protocgen/mcp/v1/options.proto";
+
+service TodoService {
+  option (protocgen.mcp.v1.service) = {};
+
+  // Create a new todo item.
+  rpc CreateTodo(CreateTodoRequest) returns (CreateTodoResponse) {
+    option (protocgen.mcp.v1.method) = {
+      description: "Create a new todo item"
+    };
+  }
+
+  // Get a todo by ID.
+  rpc GetTodo(GetTodoRequest) returns (GetTodoResponse) {
+    option (protocgen.mcp.v1.method) = {
+      description: "Get a todo by ID"
+      read_only: true
+    };
+  }
+
+  // List all todo items.
+  rpc ListTodos(ListTodosRequest) returns (ListTodosResponse) {
+    option (protocgen.mcp.v1.method) = {
+      description: "List all todo items"
+      read_only: true
+    };
+  }
+
+  // Delete a todo by ID.
+  rpc DeleteTodo(DeleteTodoRequest) returns (DeleteTodoResponse) {
+    option (protocgen.mcp.v1.method) = {
+      description: "Delete a todo by ID"
+      destructive: true
+    };
+  }
+}
+
+message CreateTodoRequest {
+  string title = 1;
+}
+
+message CreateTodoResponse {
+  int64 id = 1;
+  string title = 2;
+  bool done = 3;
+}
+
+message GetTodoRequest {
+  int64 id = 1;
+}
+
+message GetTodoResponse {
+  int64 id = 1;
+  string title = 2;
+  bool done = 3;
+}
+
+message ListTodosRequest {}
+
+message ListTodosResponse {
+  repeated GetTodoResponse todos = 1;
+}
+
+message DeleteTodoRequest {
+  int64 id = 1;
+}
+
+message DeleteTodoResponse {
+  string status = 1;
+}
