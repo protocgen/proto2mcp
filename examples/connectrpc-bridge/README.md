@@ -18,12 +18,12 @@ package example.patient.v1;
 import "protocgen/mcp/v1/options.proto";
 
 service PatientService {
-  option (protocgen.mcp.v1.service_mcp) = {
+  option (protocgen.mcp.v1.service) = {
     generate_connect: true
   };
 
   rpc GetPatient(GetPatientRequest) returns (GetPatientResponse) {
-    option (protocgen.mcp.v1.method_mcp) = {
+    option (protocgen.mcp.v1.method) = {
       description: "Get a patient by ID"
     };
   }
