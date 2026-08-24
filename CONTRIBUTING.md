@@ -38,7 +38,7 @@ codegen/pkg/extract/       # Proto → IR extraction
 codegen/pkg/emit/          # IR → Go code generation
 examples/quickstart/       # Zero-dep runnable example
 examples/proto-quickstart/ # Full codegen workflow example
-examples/connectrpc-bridge/# ConnectRPC forwarding guide
+examples/connectrpc-bridge/ # ConnectRPC forwarding guide
 examples/healthcare/       # Healthcare domain example
 docs/                      # Authorization guide, etc.
 oss-fuzz/                  # Google OSS-Fuzz integration

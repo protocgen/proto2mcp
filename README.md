@@ -262,6 +262,9 @@ for i, t := range tools {
     toolNames[i] = t.Name
 }
 metrics, err := mcpruntime.NewBoundedMetrics(otel.Meter("mcp"), toolNames)
+if err != nil {
+    log.Fatal(err)
+}
 
 // Record in your middleware or handler
 metrics.RecordToolCall(ctx, toolName, tenantID, "success", duration)
