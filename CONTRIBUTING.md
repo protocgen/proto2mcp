@@ -30,14 +30,18 @@ Alternatively, you can manually install the required tools:
 ## Project Structure
 
 ```text
-pkg/mcpruntime/           # Runtime library (registry, middleware, metrics)
+proto/                     # Protobuf definitions (options.proto)
+pkg/mcpruntime/            # Runtime library (registry, middleware, metrics)
 pkg/mcpruntime/connectbridge/  # ConnectRPC error mapping
 codegen/                   # protoc-gen-proto2mcp plugin (separate go.mod)
 codegen/pkg/extract/       # Proto → IR extraction
 codegen/pkg/emit/          # IR → Go code generation
 examples/quickstart/       # Zero-dep runnable example
 examples/proto-quickstart/ # Full codegen workflow example
+examples/connectrpc-bridge/ # ConnectRPC forwarding guide
+examples/healthcare/       # Healthcare domain example
 docs/                      # Authorization guide, etc.
+oss-fuzz/                  # Google OSS-Fuzz integration
 ```
 
 ## Branch Conventions

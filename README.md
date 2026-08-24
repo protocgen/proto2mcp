@@ -227,9 +227,11 @@ rpc OnboardPatient(OnboardReq) returns (OnboardResp) {
 }
 ```
 
-The generated code calls `RegisterMacro` with step definitions. Use `SequentialExecutor` to run them:
+The generated code calls `RegisterMacro` with step definitions. Use the internal `SequentialExecutor` to run them:
 
 ```go
+import "github.com/protocgen/proto2mcp/pkg/mcpruntime/internal/macro"
+
 executor := &macro.SequentialExecutor{
     Lookup: func(name string) (macro.HandlerFunc, bool) {
         h, ok := registry.Lookup(name)
@@ -260,8 +262,12 @@ for i, t := range tools {
     toolNames[i] = t.Name
 }
 metrics, err := mcpruntime.NewBoundedMetrics(otel.Meter("mcp"), toolNames)
-// Then pass it via options during registration
-RegisterPatientServiceMCP(registry, handler, mcpruntime.WithMetrics(metrics))
+if err != nil {
+    log.Fatal(err)
+}
+
+// Record in your middleware or handler
+metrics.RecordToolCall(ctx, toolName, tenantID, "success", duration)
 ```
 
 ## Security
@@ -319,7 +325,7 @@ See the [godoc](https://pkg.go.dev/github.com/protocgen/proto2mcp) for full pack
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines. See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 Quick start:
 ```bash
