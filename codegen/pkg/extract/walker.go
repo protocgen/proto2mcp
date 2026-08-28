@@ -153,6 +153,12 @@ func extractMethod(method *protogen.Method, svcName, svcPrefix string) *ToolIR {
 		return nil
 	}
 
+	// Streaming methods cannot be MCP tools. Auto-skip them rather than
+	// failing the build — the linter already warns about streaming separately.
+	if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
+		return nil
+	}
+
 	toolName := ""
 	if mOpts != nil && mOpts.ToolName != "" {
 		toolName = mOpts.ToolName
@@ -218,14 +224,6 @@ func extractMethod(method *protogen.Method, svcName, svcPrefix string) *ToolIR {
 				}
 			}
 		}
-	}
-
-	if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
-		tool.Warnings = append(tool.Warnings, Warning{
-			Severity: WarnError,
-			Method:   toolName,
-			Message:  "streaming methods are not supported",
-		})
 	}
 
 	// Generate JSON Schema for the input message.
