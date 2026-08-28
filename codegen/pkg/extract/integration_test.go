@@ -224,15 +224,79 @@ func TestIntegration_FromPlugin_StreamingMethod(t *testing.T) {
 	}
 
 	plugin := buildPlugin(t, fd)
-	_, err := extract.FromPlugin(plugin)
+	fileIRs, err := extract.FromPlugin(plugin)
 
-	// Streaming methods should produce WarnError, which causes FromPlugin (via ExtractFile)
-	// to return an error because WarnError warnings fail the build.
-	if err == nil {
-		t.Fatal("expected error for streaming methods, got nil")
+	// Streaming methods should be auto-skipped (not error).
+	if err != nil {
+		t.Fatalf("expected no error for streaming methods, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "streaming") {
-		t.Errorf("expected error about streaming, got: %v", err)
+	if len(fileIRs) != 1 {
+		t.Fatalf("expected 1 file IR, got %d", len(fileIRs))
+	}
+	// The service should exist but have zero tools (all streaming methods skipped).
+	if len(fileIRs[0].Services) != 1 {
+		t.Fatalf("expected 1 service, got %d", len(fileIRs[0].Services))
+	}
+	if len(fileIRs[0].Services[0].Tools) != 0 {
+		t.Errorf("expected 0 tools (all streaming skipped), got %d", len(fileIRs[0].Services[0].Tools))
+	}
+}
+
+func TestIntegration_FromPlugin_MixedStreamingAndUnary(t *testing.T) {
+	fd := &descriptorpb.FileDescriptorProto{
+		Name:    strPtr("test/v1/mixed.proto"),
+		Package: strPtr("test.v1"),
+		Syntax:  strPtr("proto3"),
+		Options: &descriptorpb.FileOptions{
+			GoPackage: strPtr("github.com/test/v1;testv1"),
+		},
+		MessageType: []*descriptorpb.DescriptorProto{
+			makeSimpleMessage("Req", makeField("id", 1, descriptorpb.FieldDescriptorProto_TYPE_STRING)),
+			makeSimpleMessage("Resp", makeField("name", 1, descriptorpb.FieldDescriptorProto_TYPE_STRING)),
+		},
+		Service: []*descriptorpb.ServiceDescriptorProto{
+			{
+				Name: strPtr("MixedService"),
+				Method: []*descriptorpb.MethodDescriptorProto{
+					{
+						Name:       strPtr("GetItem"),
+						InputType:  strPtr(".test.v1.Req"),
+						OutputType: strPtr(".test.v1.Resp"),
+					},
+					{
+						Name:            strPtr("WatchItems"),
+						InputType:       strPtr(".test.v1.Req"),
+						OutputType:      strPtr(".test.v1.Resp"),
+						ServerStreaming: boolPtr(true),
+					},
+					{
+						Name:       strPtr("DeleteItem"),
+						InputType:  strPtr(".test.v1.Req"),
+						OutputType: strPtr(".test.v1.Resp"),
+					},
+				},
+			},
+		},
+	}
+
+	plugin := buildPlugin(t, fd)
+	fileIRs, err := extract.FromPlugin(plugin)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if len(fileIRs) != 1 {
+		t.Fatalf("expected 1 file IR, got %d", len(fileIRs))
+	}
+	svc := fileIRs[0].Services[0]
+	// Only unary methods should produce tools; streaming is auto-skipped.
+	if len(svc.Tools) != 2 {
+		t.Fatalf("expected 2 tools (GetItem + DeleteItem), got %d", len(svc.Tools))
+	}
+	if svc.Tools[0].MethodName != "GetItem" {
+		t.Errorf("expected first tool to be GetItem, got %s", svc.Tools[0].MethodName)
+	}
+	if svc.Tools[1].MethodName != "DeleteItem" {
+		t.Errorf("expected second tool to be DeleteItem, got %s", svc.Tools[1].MethodName)
 	}
 }
 
